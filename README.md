@@ -132,6 +132,7 @@ git branch -D agentinit-test
 ## Release
 
 - Tag `v0.1.0` already exists (it points to a commit on `main`).
+- Tags point to commits; publishing a GitHub Release is a separate step in the repository Releases UI (select the tag, then publish).
 
 ## Planned
 

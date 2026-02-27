@@ -47,6 +47,17 @@ CLEANUP_DIRS = [
 ]
 
 
+def _resolves_within(root, path):
+    """Return True when path resolves inside root after following symlinks."""
+    try:
+        root_real = os.path.realpath(root)
+        path_real = os.path.realpath(path)
+        return os.path.commonpath([root_real, path_real]) == root_real
+    except ValueError:
+        # On Windows, different drives are never within the same root.
+        return False
+
+
 def copy_template(dest, force=False):
     """Copy template files into dest. Skip files that already exist unless force.
 
@@ -55,13 +66,22 @@ def copy_template(dest, force=False):
     """
     copied = []
     skipped = []
+    dest_real = os.path.realpath(dest)
     for rel in MANAGED_FILES:
         src = os.path.join(TEMPLATE_DIR, rel)
         dst = os.path.join(dest, rel)
         if not os.path.exists(src):
             continue
-        if os.path.exists(dst):
-            if os.path.isdir(dst) and not os.path.islink(dst):
+        if not _resolves_within(dest_real, os.path.dirname(dst)):
+            print(f"Warning: destination parent resolves outside project, skipping: {rel}", file=sys.stderr)
+            skipped.append(rel)
+            continue
+        if os.path.lexists(dst):
+            if os.path.islink(dst):
+                print(f"Warning: destination is a symlink, skipping: {rel}", file=sys.stderr)
+                skipped.append(rel)
+                continue
+            if os.path.isdir(dst):
                 print(f"Warning: destination is a directory, skipping: {rel}", file=sys.stderr)
                 skipped.append(rel)
                 continue
@@ -73,6 +93,10 @@ def copy_template(dest, force=False):
             if not force:
                 skipped.append(rel)
                 continue
+        if not _resolves_within(dest_real, dst):
+            print(f"Warning: destination resolves outside project, skipping: {rel}", file=sys.stderr)
+            skipped.append(rel)
+            continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
         copied.append(rel)
@@ -82,8 +106,8 @@ def copy_template(dest, force=False):
 def write_purpose(dest, purpose):
     """Replace the Purpose section placeholder in docs/PROJECT.md."""
     path = os.path.join(dest, "docs", "PROJECT.md")
-    if not os.path.exists(path):
-        print("Warning: docs/PROJECT.md is missing; skipping purpose update.", file=sys.stderr)
+    if not os.path.isfile(path):
+        print("Warning: docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
         return
     with open(path, "r") as f:
         content = f.read()
@@ -317,6 +341,10 @@ def main():
     p_remove.add_argument("--force", action="store_true", help="Skip confirmation prompt.")
 
     args = parser.parse_args()
+
+    if args.command is None:
+        parser.print_help()
+        return
 
     if args.command == "new":
         cmd_new(args)
