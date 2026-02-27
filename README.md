@@ -60,6 +60,21 @@ Then:
 - Log durable decisions in `docs/DECISIONS.md` (date · decision · rationale · alternatives).
 - Use `docs/TODO.md` as the “current state” so new sessions start with the right focus.
 
+## Validation
+
+This template was validated in a sandbox worktree with Claude Code and Gemini CLI.
+Both tools correctly routed via `AGENTS.md` → `docs/*` without guessing commands.
+
+## Safe testing
+
+Use `git worktree` to test changes in isolation:
+```
+git worktree add .test-branch
+cd .test-branch
+# test template changes
+git worktree remove .test-branch
+```
+
 ## Planned
 
 - `agentinit init` — scaffold these files into any project (minimal/recommended presets)
