@@ -61,6 +61,10 @@ def copy_template(dest, force=False):
         if not os.path.exists(src):
             continue
         if os.path.exists(dst):
+            if os.path.isdir(dst) and not os.path.islink(dst):
+                print(f"Warning: destination is a directory, skipping: {rel}", file=sys.stderr)
+                skipped.append(rel)
+                continue
             if rel == ".gitignore":
                 skipped.append(rel)
                 if force:
@@ -78,6 +82,9 @@ def copy_template(dest, force=False):
 def write_purpose(dest, purpose):
     """Replace the Purpose section placeholder in docs/PROJECT.md."""
     path = os.path.join(dest, "docs", "PROJECT.md")
+    if not os.path.exists(path):
+        print("Warning: docs/PROJECT.md is missing; skipping purpose update.", file=sys.stderr)
+        return
     with open(path, "r") as f:
         content = f.read()
     content = content.replace(
@@ -161,6 +168,9 @@ def cmd_new(args):
     # Create dir and copy template
     os.makedirs(dest, exist_ok=True)
     copied, skipped = copy_template(dest, force=args.force)
+    if not copied and not skipped:
+        print("Error: template directory not found. Installation may be corrupt.", file=sys.stderr)
+        sys.exit(1)
 
     # Customize generated files
     write_purpose(dest, purpose)
@@ -205,8 +215,9 @@ def cmd_remove(args):
     missing = []
     for rel in REMOVABLE_FILES:
         path = os.path.join(dest, rel)
-        if os.path.exists(path):
-            found.append(rel)
+        if os.path.lexists(path):
+            is_dir = os.path.isdir(path) and not os.path.islink(path)
+            found.append((rel, is_dir))
         else:
             missing.append(rel)
 
@@ -218,19 +229,24 @@ def cmd_remove(args):
 
     # Describe what will happen.
     action = "archive" if archive else "remove"
-    for rel in found:
+    for rel, is_dir in found:
+        if is_dir:
+            print(f"  ! {rel} (directory; will skip)")
+            continue
         print(f"  {'→' if archive else '×'} {rel}")
     if missing:
         for rel in missing:
             print(f"  - {rel} (already absent)")
 
     if dry_run:
-        print(f"\nDry run: would {action} {len(found)} file(s).")
+        actionable = sum(1 for _, is_dir in found if not is_dir)
+        print(f"\nDry run: would {action} {actionable} file(s).")
         return
 
     # Confirm unless --force.
     if not args.force:
-        answer = input(f"\n{action.capitalize()} {len(found)} file(s)? (y/N) ").strip().lower()
+        actionable = sum(1 for _, is_dir in found if not is_dir)
+        answer = input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ").strip().lower()
         if answer != "y":
             print("Aborted.")
             return
@@ -239,16 +255,34 @@ def cmd_remove(args):
     if archive:
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         archive_dir = os.path.join(dest, ".agentinit-archive", ts)
-        for rel in found:
+        archived = 0
+        for rel, is_dir in found:
+            if is_dir:
+                print(f"Warning: managed path is a directory, skipping archive: {rel}", file=sys.stderr)
+                continue
             src = os.path.join(dest, rel)
             dst = os.path.join(archive_dir, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.move(src, dst)
-        print(f"Archived {len(found)} file(s) to .agentinit-archive/{ts}/")
+            try:
+                shutil.move(src, dst)
+                archived += 1
+            except OSError as e:
+                print(f"Error: failed to archive {rel}: {e}", file=sys.stderr)
+                continue
+        print(f"Archived {archived} file(s) to .agentinit-archive/{ts}/")
     else:
-        for rel in found:
-            os.remove(os.path.join(dest, rel))
-        print(f"Removed {len(found)} file(s).")
+        removed = 0
+        for rel, is_dir in found:
+            if is_dir:
+                print(f"Warning: managed path is a directory, skipping remove: {rel}", file=sys.stderr)
+                continue
+            try:
+                os.remove(os.path.join(dest, rel))
+                removed += 1
+            except OSError as e:
+                print(f"Error: failed to remove {rel}: {e}", file=sys.stderr)
+                continue
+        print(f"Removed {removed} file(s).")
 
     # Cleanup empty directories.
     for d in CLEANUP_DIRS:
