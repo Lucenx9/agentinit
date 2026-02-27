@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Smoke test (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install dist/*.whl
+
+          agentinit --help
+
+          PROJ="$(mktemp -d)/testproj"
+          agentinit new "$PROJ" --yes
+
+          cd "$PROJ"
+          agentinit init
+          agentinit remove --dry-run
+
+          echo "keep" > KEEP_ME.txt
+          agentinit remove --force
+          test -f KEEP_ME.txt && echo "KEEP_ME.txt preserved"
+
+      - name: Smoke test (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\Activate.ps1
+          pip install (Get-ChildItem dist\*.whl).FullName
+
+          agentinit --help
+
+          $proj = Join-Path $env:TEMP "agentinit-test-${{ github.run_id }}"
+          agentinit new $proj --yes
+
+          Set-Location $proj
+          agentinit init
+          agentinit remove --dry-run
+
+          "keep" | Out-File KEEP_ME.txt
+          agentinit remove --force
+          if (-not (Test-Path KEEP_ME.txt)) { throw "KEEP_ME.txt was deleted" }
+          Write-Host "KEEP_ME.txt preserved"
