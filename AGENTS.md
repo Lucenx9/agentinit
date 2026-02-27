@@ -7,7 +7,11 @@ Read these first:
 - docs/CONVENTIONS.md
 - docs/TODO.md
 - docs/DECISIONS.md
-
+Commands (TBD):
+- Install: TBD
+- Build: TBD
+- Test: TBD
+- Lint/Format: TBD
 General rules:
 1. Follow docs/* before making changes.
 2. Keep plans, assumptions, and progress in docs/TODO.md.
