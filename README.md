@@ -131,10 +131,7 @@ git branch -D agentinit-test
 
 ## Release
 
-- Tag `v0.1.0` already exists on `main`.
-- To publish a GitHub Release: go to **Releases → Draft a new release → Choose tag `v0.1.0`** → paste release notes → **Publish release**.
-- This is a GitHub-only release; the package is not published to PyPI.
-- Future tags should follow `vX.Y.Z` (semver).
+- Tag `v0.1.0` already exists (it points to a commit on `main`).
 
 ## Planned
 
