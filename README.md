@@ -1,7 +1,8 @@
 # agentinit
 
-A tiny template repo that standardizes **project context / memory** for coding agents across tools
-(Claude Code, Gemini CLI, GitHub Copilot, Cursor) using a **router + source-of-truth** layout.
+A tiny template repo that standardizes **project context / memory** for coding agents
+across tools (Claude Code, Gemini CLI, GitHub Copilot, Cursor)
+using a **router + source-of-truth** layout.
 
 ## Why this exists
 
@@ -11,8 +12,8 @@ Coding agents are more consistent when they always have:
 - what’s being worked on right now
 - what decisions are already made
 
-`agentinit` gives you a minimal, version-controlled set of Markdown files to keep that context stable
-and avoid duplicated instruction blocks.
+`agentinit` gives you a minimal, version-controlled set of Markdown files
+to keep that context stable and avoid duplicated instruction blocks.
 
 ## Design principles
 
@@ -113,6 +114,7 @@ Both tools correctly routed via `AGENTS.md` → `docs/*` without guessing comman
 ## Safe testing
 
 Use `git worktree` to test changes in isolation:
+
 ```
 git worktree add .test-branch
 cd .test-branch
