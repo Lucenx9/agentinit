@@ -4,3 +4,8 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/
+*.egg-info/
+__pycache__/
+dist/
+build/
+.claude/settings.local.json

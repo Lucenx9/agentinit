@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentinit"
+version = "0.1.0"
+description = "Scaffold agent context files into a project."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.7"
+
+[project.scripts]
+agentinit = "agentinit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agentinit", "agentinit.*"]
+
+[tool.setuptools.package-data]
+agentinit = [
+    "template/**/*",
+    "template/*",
+    "template/.*",
+    "template/**/*.*",
+    "template/.cursor/rules/*",
+    "template/.github/*",
+]
