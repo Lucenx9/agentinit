@@ -39,14 +39,17 @@ to keep that context stable and avoid duplicated instruction blocks.
 
 ## Install
 
-Requires Python 3.7+. pipx is recommended for installing standalone Python CLIs in isolated environments.
+Requires Python 3.10+. pipx is recommended for installing standalone Python CLIs in isolated environments.
 
 ```
-# Install from GitHub
-pipx install git+https://github.com/Lucenx9/agentinit.git
+# Install from GitHub (latest)
+pipx install git+https://github.com/Lucenx9/agentinit.git@main
+
+# Install a pinned release
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.1.0
 
 # Or run one-off without installing
-pipx run --spec git+https://github.com/Lucenx9/agentinit.git agentinit --help
+pipx run --spec git+https://github.com/Lucenx9/agentinit.git@main agentinit --help
 ```
 
 You can also install with pip (`pip install git+https://...`) or run directly from a clone:
@@ -116,10 +119,12 @@ Both tools correctly routed via `AGENTS.md` → `docs/*` without guessing comman
 Use `git worktree` to test changes in isolation:
 
 ```
-git worktree add .test-branch
-cd .test-branch
+git worktree add ../agentinit-test -b agentinit-test
+cd ../agentinit-test
 # test template changes
-git worktree remove .test-branch
+cd -
+git worktree remove ../agentinit-test
+git branch -D agentinit-test
 ```
 
 ## Planned
