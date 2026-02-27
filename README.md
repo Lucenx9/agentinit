@@ -1,5 +1,7 @@
 # agentinit
 
+![CI](https://github.com/Lucenx9/agentinit/actions/workflows/ci.yml/badge.svg)
+
 A tiny template repo that standardizes **project context / memory** for coding agents
 across tools (Claude Code, Gemini CLI, GitHub Copilot, Cursor)
 using a **router + source-of-truth** layout.
@@ -126,6 +128,13 @@ cd -
 git worktree remove ../agentinit-test
 git branch -D agentinit-test
 ```
+
+## Release
+
+- Tag `v0.1.0` already exists on `main`.
+- To publish a GitHub Release: go to **Releases → Draft a new release → Choose tag `v0.1.0`** → paste release notes → **Publish release**.
+- This is a GitHub-only release; the package is not published to PyPI.
+- Future tags should follow `vX.Y.Z` (semver).
 
 ## Planned
 
