@@ -21,7 +21,6 @@ agentinit = [
     "template/**/*",
     "template/*",
     "template/.*",
-    "template/**/*.*",
     "template/.cursor/rules/*",
     "template/.github/*",
 ]
