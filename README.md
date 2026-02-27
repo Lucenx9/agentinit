@@ -36,14 +36,31 @@ and avoid duplicated instruction blocks.
 - `.github/copilot-instructions.md` — Copilot repo instructions (no imports; keep essentials inline)
 - `.cursor/rules/project.mdc` — Cursor rules (frontmatter + pointers)
 
-## CLI usage
+## Install
 
-Requires Python 3.7+.
+Requires Python 3.7+. pipx is recommended for installing standalone Python CLIs in isolated environments.
+
+```
+# Install from GitHub
+pipx install git+https://github.com/Lucenx9/agentinit.git
+
+# Or run one-off without installing
+pipx run --spec git+https://github.com/Lucenx9/agentinit.git agentinit --help
+```
+
+You can also install with pip (`pip install git+https://...`) or run directly from a clone:
+
+```
+git clone https://github.com/Lucenx9/agentinit.git
+python -m agentinit --help
+```
+
+## Usage
 
 ### Create a new project
 
 ```
-python cli/agentinit.py new myproject
+agentinit new myproject
 ```
 
 You will be prompted for a one-line project purpose. Use `--yes` to skip the prompt (sets purpose to "TBD").
@@ -57,13 +74,22 @@ Flags:
 
 ```
 cd your-project
-python /path/to/agentinit/cli/agentinit.py init
+agentinit init
 ```
 
 Copies only missing template files. Safe to run multiple times (idempotent).
 
 Flags:
 - `--force` — overwrite existing agentinit files
+
+### Remove agentinit files
+
+```
+agentinit remove --dry-run    # preview what would be removed
+agentinit remove              # remove with confirmation prompt
+agentinit remove --archive    # move to .agentinit-archive/ instead of deleting
+agentinit remove --force      # skip confirmation prompt
+```
 
 ### Manual setup (no CLI)
 
