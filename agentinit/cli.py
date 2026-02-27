@@ -48,7 +48,11 @@ CLEANUP_DIRS = [
 
 
 def copy_template(dest, force=False):
-    """Copy template files into dest. Skip files that already exist unless force."""
+    """Copy template files into dest. Skip files that already exist unless force.
+
+    .gitignore is never overwritten, even with --force, because users commonly
+    customize it and clobbering would lose their changes.
+    """
     copied = []
     skipped = []
     for rel in MANAGED_FILES:
@@ -56,9 +60,15 @@ def copy_template(dest, force=False):
         dst = os.path.join(dest, rel)
         if not os.path.exists(src):
             continue
-        if os.path.exists(dst) and not force:
-            skipped.append(rel)
-            continue
+        if os.path.exists(dst):
+            if rel == ".gitignore":
+                skipped.append(rel)
+                if force:
+                    print(f"  Note: .gitignore already exists, leaving it untouched.")
+                continue
+            if not force:
+                skipped.append(rel)
+                continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
         copied.append(rel)

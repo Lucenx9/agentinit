@@ -62,15 +62,20 @@ jobs:
           pip install (Get-ChildItem dist\*.whl).FullName
 
           agentinit --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           $proj = Join-Path $env:TEMP "agentinit-test-${{ github.run_id }}"
           agentinit new $proj --yes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Set-Location $proj
           agentinit init
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           agentinit remove --dry-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           "keep" | Out-File KEEP_ME.txt
           agentinit remove --force
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path KEEP_ME.txt)) { throw "KEEP_ME.txt was deleted" }
           Write-Host "KEEP_ME.txt preserved"
