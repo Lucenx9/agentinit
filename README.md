@@ -36,22 +36,41 @@ and avoid duplicated instruction blocks.
 - `.github/copilot-instructions.md` — Copilot repo instructions (no imports; keep essentials inline)
 - `.cursor/rules/project.mdc` — Cursor rules (frontmatter + pointers)
 
-## Quick start
+## CLI usage
 
-### Option A — Use this repo as a template
-1. Create a new repo from this template (or copy the files into your repo).
-2. Fill the **TBD** sections in:
-   - `docs/PROJECT.md`
-   - `docs/CONVENTIONS.md`
-3. Keep `docs/TODO.md` updated each session.
+Requires Python 3.7+.
 
-### Option B — Copy into an existing repository
+### Create a new project
+
+```
+python cli/agentinit.py new myproject
+```
+
+You will be prompted for a one-line project purpose. Use `--yes` to skip the prompt (sets purpose to "TBD").
+
+Flags:
+- `--yes` / `-y` — skip prompts
+- `--dir <path>` — create the project under a different parent directory
+- `--force` — overwrite agentinit files if the directory already exists (user files are never deleted)
+
+### Add to an existing project
+
+```
+cd your-project
+python /path/to/agentinit/cli/agentinit.py init
+```
+
+Copies only missing template files. Safe to run multiple times (idempotent).
+
+Flags:
+- `--force` — overwrite existing agentinit files
+
+### Manual setup (no CLI)
+
 Copy these into your repo root:
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/`
 
-Then:
-- customize `docs/*`
-- commit everything
+Then customize `docs/*` and commit.
 
 ## How to keep it healthy
 
@@ -77,7 +96,6 @@ git worktree remove .test-branch
 
 ## Planned
 
-- `agentinit init` — scaffold these files into any project (minimal/recommended presets)
 - `agentinit build` — validate pointers, enforce line limits, and sanity-check structure
 
 ## License
