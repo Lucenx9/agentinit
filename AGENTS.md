@@ -1,8 +1,10 @@
 # Agent Router
+
 This repository standardizes context/memory files for coding agents.
 AGENTS.md is the source of truth; avoid copying policy text into other router files.
 
 Read these first:
+
 - docs/PROJECT.md
 - docs/CONVENTIONS.md
 - docs/TODO.md
@@ -13,6 +15,7 @@ Commands (TBD):
 - Test: TBD
 - Lint/Format: TBD
 General rules:
+
 1. Follow docs/* before making changes.
 2. Keep plans, assumptions, and progress in docs/TODO.md.
 3. Record durable choices in docs/DECISIONS.md.

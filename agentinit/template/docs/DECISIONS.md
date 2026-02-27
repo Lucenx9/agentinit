@@ -3,6 +3,7 @@
 Use one ADR-lite entry per durable decision.
 
 ## Entry Format
+
 - Date: YYYY-MM-DD
 - Decision: Short statement
 - Rationale: Why this choice was made

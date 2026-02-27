@@ -9,6 +9,7 @@ using a **router + source-of-truth** layout.
 ## Why this exists
 
 Coding agents are more consistent when they always have:
+
 - what the project is
 - how to work in it (style, rules, testing)
 - what’s being worked on right now
@@ -27,6 +28,7 @@ to keep that context stable and avoid duplicated instruction blocks.
 ## Repository layout
 
 ### Canonical context
+
 - `AGENTS.md` — canonical router for this template (kept short)
 - `docs/PROJECT.md` — project purpose, constraints, layout, key commands (TBD placeholders)
 - `docs/CONVENTIONS.md` — style, naming, testing, git workflow (TBD placeholders)
@@ -34,6 +36,7 @@ to keep that context stable and avoid duplicated instruction blocks.
 - `docs/DECISIONS.md` — ADR-lite decision log
 
 ### Tool-specific entry points
+
 - `CLAUDE.md` — Claude Code router (points to `AGENTS.md`)
 - `GEMINI.md` — Gemini CLI router (points to `AGENTS.md`; may import if supported)
 - `.github/copilot-instructions.md` — Copilot repo instructions (no imports; keep essentials inline)
@@ -43,7 +46,7 @@ to keep that context stable and avoid duplicated instruction blocks.
 
 Requires Python 3.10+. pipx is recommended for installing standalone Python CLIs in isolated environments.
 
-```
+```sh
 # Install from GitHub (latest)
 pipx install git+https://github.com/Lucenx9/agentinit.git@main
 
@@ -56,7 +59,7 @@ pipx run --spec git+https://github.com/Lucenx9/agentinit.git@main agentinit --he
 
 You can also install with pip (`pip install git+https://...`) or run directly from a clone:
 
-```
+```sh
 git clone https://github.com/Lucenx9/agentinit.git
 python -m agentinit --help
 ```
@@ -65,20 +68,21 @@ python -m agentinit --help
 
 ### Create a new project
 
-```
+```sh
 agentinit new myproject
 ```
 
 You will be prompted for a one-line project purpose. Use `--yes` to skip the prompt (sets purpose to "TBD").
 
 Flags:
+
 - `--yes` / `-y` — skip prompts
 - `--dir <path>` — create the project under a different parent directory
 - `--force` — overwrite agentinit files if the directory already exists (user files are never deleted)
 
 ### Add to an existing project
 
-```
+```sh
 cd your-project
 agentinit init
 ```
@@ -86,11 +90,12 @@ agentinit init
 Copies only missing template files. Safe to run multiple times (idempotent).
 
 Flags:
+
 - `--force` — overwrite existing agentinit files
 
 ### Remove agentinit files
 
-```
+```sh
 agentinit remove --dry-run    # preview what would be removed
 agentinit remove              # remove with confirmation prompt
 agentinit remove --archive    # move to .agentinit-archive/ instead of deleting
@@ -100,6 +105,7 @@ agentinit remove --force      # skip confirmation prompt
 ### Manual setup (no CLI)
 
 Copy these into your repo root:
+
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/`
 
 Then customize `docs/*` and commit.
@@ -120,7 +126,7 @@ Both tools correctly routed via `AGENTS.md` → `docs/*` without guessing comman
 
 Use `git worktree` to test changes in isolation:
 
-```
+```sh
 git worktree add ../agentinit-test -b agentinit-test
 cd ../agentinit-test
 # test template changes
