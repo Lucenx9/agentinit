@@ -69,7 +69,7 @@ is what agentinit fixes.
 
 ```sh
 # 1. Install (stable)
-pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
 
 # Or bleeding edge:
 # pipx install git+https://github.com/Lucenx9/agentinit.git@main
@@ -115,13 +115,13 @@ Requires Python 3.10+.
 
 ```sh
 # With pipx (recommended, stable)
-pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
 
 # With pip
-pip install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
+pip install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
 
 # Or run one-off without installing
-pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.2 agentinit --help
+pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.3 agentinit --help
 
 # Bleeding edge (latest on main)
 # pipx install git+https://github.com/Lucenx9/agentinit.git@main
@@ -163,14 +163,13 @@ Flags:
 - `--purpose "<text>"` — prefill Purpose without prompts
 - `--prompt` — run a short interactive wizard (requires a TTY)
 
-### Quick minimal scaffold (@main / next release)
+### Quick minimal scaffold
 
 ```sh
 agentinit minimal
 ```
 
 Shortcut for `agentinit init --minimal`. Accepts the same flags (`--force`, `--purpose`, `--prompt`).
-Available on `@main`; not yet in the latest stable release.
 
 ### Remove agentinit files
 
