@@ -20,6 +20,8 @@ def make_args(**kwargs):
         "dir": None,
         "force": False,
         "yes": True,
+        "purpose": None,
+        "prompt": False,
         "minimal": False,
     }
     defaults.update(kwargs)
@@ -27,7 +29,10 @@ def make_args(**kwargs):
 
 
 def make_init_args(**kwargs):
-    defaults = {"force": False, "minimal": False}
+    defaults = {"force": False, "minimal": False,
+        "purpose": None,
+        "prompt": False
+    }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
@@ -142,20 +147,31 @@ class TestWriteDecisions:
 
 
 # ---------------------------------------------------------------------------
-# write_purpose
+# apply_updates
 # ---------------------------------------------------------------------------
 
-class TestWritePurpose:
+class TestApplyUpdates:
     def test_replaces_placeholder(self, tmp_path):
         cli.copy_template(str(tmp_path))
-        cli.write_purpose(str(tmp_path), "My awesome project")
+        args = make_args(purpose="My awesome project", prompt=False)
+        cli.apply_updates(str(tmp_path), args)
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "My awesome project" in content
         assert "Describe what this project is for" not in content
 
     def test_noop_when_file_missing(self, tmp_path, capsys):
-        cli.write_purpose(str(tmp_path), "anything")
+        args = make_args(purpose="anything", prompt=False)
+        cli.apply_updates(str(tmp_path), args)
         assert "not a regular file" in capsys.readouterr().err
+
+    def test_prompt_fails_if_not_tty(self, tmp_path, monkeypatch, capsys):
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True)
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        with pytest.raises(SystemExit) as exc:
+            cli.apply_updates(str(tmp_path), args)
+        assert exc.value.code == 1
+        assert "requires an interactive TTY" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +236,7 @@ class TestCmdNew:
         assert "# TODO" in todo.read_text()
 
     def test_minimal_creates_only_core_files(self, tmp_path):
-        args = make_args(name="myproj", dir=str(tmp_path), minimal=True)
+        args = make_args(name="myproj", dir=str(tmp_path), minimal=True, yes=True)
         cli.cmd_new(args)
         proj = tmp_path / "myproj"
         files = sorted(str(p.relative_to(proj)) for p in proj.rglob("*") if p.is_file())
@@ -230,6 +246,19 @@ class TestCmdNew:
             "docs/CONVENTIONS.md",
             "docs/PROJECT.md",
         ]
+        content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "Describe what this project is for" not in content
+        # It should keep TBD in PROJECT.md if no purpose provided
+        # Wait, the template has "Describe what this project is for, who it serves..." and we replace with TBD.
+        assert "TBD" in content
+
+    def test_minimal_with_purpose(self, tmp_path):
+        args = make_args(name="myproj", dir=str(tmp_path), minimal=True, yes=True, purpose="Custom Purpose")
+        cli.cmd_new(args)
+        proj = tmp_path / "myproj"
+        content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "Custom Purpose" in content
+        assert "Describe what this project is for" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +288,13 @@ class TestCmdInit:
             "docs/CONVENTIONS.md",
             "docs/PROJECT.md",
         ]
+
+    def test_minimal_with_purpose(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True, purpose="Init Purpose"))
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "Init Purpose" in content
+        assert "Describe what this project is for" not in content
 
     def test_minimal_does_not_overwrite_project_or_conventions_without_force(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

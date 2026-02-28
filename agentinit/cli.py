@@ -111,20 +111,84 @@ def copy_template(dest, force=False, minimal=False):
     return copied, skipped
 
 
-def write_purpose(dest, purpose):
-    """Replace the Purpose section placeholder in docs/PROJECT.md."""
-    path = os.path.join(dest, "docs", "PROJECT.md")
-    if not os.path.isfile(path):
+def apply_updates(dest, args):
+    """Apply purpose and wizard data to project files."""
+    wizard_run = args.prompt
+    if wizard_run:
+        if not sys.stdin.isatty():
+            print("Error: --prompt requires an interactive TTY.", file=sys.stderr)
+            sys.exit(1)
+        purpose = args.purpose
+        while not purpose:
+            purpose = input("Purpose: ").strip()
+        env = input("Environment (OS/device) [optional]: ").strip()
+        constraints = input("Constraints [optional]: ").strip()
+        commands = input("Commands I can run (comma-separated) [optional]: ").strip()
+    else:
+        purpose = args.purpose or "TBD"
+        env = ""
+        constraints = ""
+        commands = ""
+
+    project_path = os.path.join(dest, "docs", "PROJECT.md")
+    if not os.path.isfile(project_path):
         print("Warning: docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
-        return
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-    content = content.replace(
-        "Describe what this project is for, who it serves, and the expected outcomes.",
-        purpose,
-    )
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
+    else:
+        with open(project_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        if purpose:
+            content = content.replace(
+                "Describe what this project is for, who it serves, and the expected outcomes.",
+                purpose,
+            )
+
+        if wizard_run:
+            if env:
+                content = content.replace(
+                    "## Stack (TBD)",
+                    f"## Environment\n\n- OS/device: {env}\n\n## Stack (TBD)"
+                )
+            if commands:
+                cmds_list = "\n".join(f"- {c.strip()}" for c in commands.split(",") if c.strip())
+                old_commands = (
+                    "## Commands (TBD)\n\n"
+                    "- Setup: TBD\n"
+                    "- Build: TBD\n"
+                    "- Test: TBD\n"
+                    "- Lint/Format: TBD\n"
+                    "- Run: TBD"
+                )
+                content = content.replace(old_commands, f"## Commands\n\n{cmds_list}")
+            if constraints:
+                old_constraints = (
+                    "- Document non-negotiable constraints here.\n"
+                    "- List security/compliance/performance boundaries.\n"
+                    "- Note delivery deadlines or operational limits."
+                )
+                content = content.replace(old_constraints, f"- {constraints}")
+
+        with open(project_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content)
+
+    if wizard_run:
+        conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
+        if os.path.isfile(conv_path):
+            safe_defaults = (
+                "## Safe Defaults\n\n"
+                "- Prefer small, reversible changes\n"
+                "- Ask before destructive actions\n"
+                "- Provide copy-paste commands\n"
+                "- State assumptions\n\n"
+            )
+            with open(conv_path, "r", encoding="utf-8") as f:
+                conv_content = f.read()
+            if "# Conventions Template\n" in conv_content:
+                conv_content = conv_content.replace("# Conventions Template\n", f"# Conventions Template\n\n{safe_defaults}", 1)
+            else:
+                conv_content = safe_defaults + conv_content
+            with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(conv_content)
 
 
 def write_todo(dest, force=False):
@@ -210,14 +274,6 @@ def cmd_new(args):
         print("Use --force to overwrite agentinit files.", file=sys.stderr)
         sys.exit(1)
 
-    # Ask for purpose
-    if args.yes:
-        purpose = "TBD"
-    else:
-        purpose = input("Project purpose (one line): ").strip()
-        if not purpose:
-            purpose = "TBD"
-
     # Validate template before creating anything.
     if not os.path.isdir(TEMPLATE_DIR):
         print("Error: template directory not found. Installation may be corrupt.", file=sys.stderr)
@@ -231,7 +287,7 @@ def cmd_new(args):
         sys.exit(1)
 
     # Customize generated files
-    write_purpose(dest, purpose)
+    apply_updates(dest, args)
     if not args.minimal:
         write_todo(dest, force=args.force)
         write_decisions(dest, force=args.force)
@@ -251,6 +307,8 @@ def cmd_init(args):
     if not copied and not skipped:
         print("Nothing to do — template directory not found.")
         sys.exit(1)
+        
+    apply_updates(dest, args)
 
     if copied:
         print(f"Copied {len(copied)} files:")
@@ -369,6 +427,8 @@ def main():
         action="store_true",
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
+    p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
+    p_new.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
 
     # agentinit init
     p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
@@ -378,6 +438,8 @@ def main():
         action="store_true",
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
+    p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
+    p_init.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
 
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")

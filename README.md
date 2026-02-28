@@ -35,6 +35,7 @@ Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
 
 - Minimal mode creates only 4 files: `AGENTS.md`, `CLAUDE.md`, `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
 - You only need to fill `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
+- Use `--purpose` to prefill Purpose without prompts, or `--prompt` to run a short interactive wizard.
 - Keep reading this README only if you want advanced usage.
 
 ### Token savings (rough estimate)
