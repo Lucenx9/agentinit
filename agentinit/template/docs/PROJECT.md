@@ -9,6 +9,14 @@
 - **Framework(s):** TBD
 - **Storage/Infra:** TBD
 
+## Commands (TBD)
+
+- Setup: TBD
+- Build: TBD
+- Test: TBD
+- Lint/Format: TBD
+- Run: TBD
+
 ## Layout
 
 - `AGENTS.md`: Primary router.

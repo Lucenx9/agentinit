@@ -160,6 +160,162 @@ def copy_template(dest, force=False, minimal=False):
     return copied, skipped
 
 
+def _run_detect(dest, project_path, content):
+    """Detect stack and commands from manifests and return updated content."""
+    import json
+    
+    stack_updates = {}
+    cmd_updates = {}
+    
+    # 1. Node: package.json
+    pkg_json_path = os.path.join(dest, "package.json")
+    if os.path.isfile(pkg_json_path):
+        try:
+            with open(pkg_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            stack_updates["- **Runtime:** TBD"] = "- **Runtime:** Node.js"
+            
+            pm = data.get("packageManager", "")
+            manager = "npm"
+            if "pnpm" in pm:
+                manager = "pnpm"
+            elif "yarn" in pm:
+                manager = "yarn"
+            elif "bun" in pm:
+                manager = "bun"
+            else:
+                if os.path.isfile(os.path.join(dest, "pnpm-lock.yaml")):
+                    manager = "pnpm"
+                elif os.path.isfile(os.path.join(dest, "yarn.lock")):
+                    manager = "yarn"
+                elif os.path.isfile(os.path.join(dest, "bun.lockb")):
+                    manager = "bun"
+                else:
+                    manager = "npm"
+            
+            scripts = data.get("scripts", {})
+            run_prefix = f"{manager} run " if manager not in ("yarn", "bun") else f"{manager} "
+            
+            if "setup" in scripts:
+                cmd_updates["- Setup: TBD"] = f"- Setup: {run_prefix}setup"
+            else:
+                cmd_updates["- Setup: TBD"] = f"- Setup: {manager} install"
+                
+            if "build" in scripts:
+                cmd_updates["- Build: TBD"] = f"- Build: {run_prefix}build"
+            if "test" in scripts:
+                cmd_updates["- Test: TBD"] = f"- Test: {run_prefix}test"
+            if "lint" in scripts:
+                cmd_updates["- Lint/Format: TBD"] = f"- Lint/Format: {run_prefix}lint"
+            elif "format" in scripts:
+                cmd_updates["- Lint/Format: TBD"] = f"- Lint/Format: {run_prefix}format"
+            if "dev" in scripts:
+                cmd_updates["- Run: TBD"] = f"- Run: {run_prefix}dev"
+            elif "start" in scripts:
+                cmd_updates["- Run: TBD"] = f"- Run: {run_prefix}start"
+        except Exception:
+            pass
+
+    # 2. Go: go.mod
+    go_mod_path = os.path.join(dest, "go.mod")
+    if os.path.isfile(go_mod_path):
+        try:
+            with open(go_mod_path, "r", encoding="utf-8") as f:
+                go_version = None
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("go "):
+                        go_version = line.split(" ")[1]
+                        break
+            
+            stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Go"
+            if go_version:
+                stack_updates["- **Runtime:** TBD"] = f"- **Runtime:** Go {go_version}"
+            
+            cmd_updates["- Setup: TBD"] = "- Setup: go mod download"
+            cmd_updates["- Build: TBD"] = "- Build: go build ./..."
+            cmd_updates["- Test: TBD"] = "- Test: go test ./..."
+            cmd_updates["- Run: TBD"] = "- Run: go run ."
+        except Exception:
+            pass
+
+    # TOML parsers (Python, Rust)
+    try:
+        import tomllib
+    except ImportError:
+        tomllib = None
+
+    if tomllib:
+        # 3. Rust: Cargo.toml
+        cargo_path = os.path.join(dest, "Cargo.toml")
+        if os.path.isfile(cargo_path):
+            try:
+                with open(cargo_path, "rb") as f:
+                    cargo_data = tomllib.load(f)
+                
+                pkg = cargo_data.get("package", {})
+                name = pkg.get("name", "")
+                edition = pkg.get("edition", "")
+                
+                lang_str = "- **Language(s):** Rust"
+                if edition:
+                    lang_str += f" ({edition})"
+                stack_updates["- **Language(s):** TBD"] = lang_str
+                
+                cmd_updates["- Setup: TBD"] = "- Setup: cargo fetch"
+                cmd_updates["- Build: TBD"] = "- Build: cargo build"
+                cmd_updates["- Test: TBD"] = "- Test: cargo test"
+                cmd_updates["- Lint/Format: TBD"] = "- Lint/Format: cargo fmt && cargo clippy"
+                cmd_updates["- Run: TBD"] = "- Run: cargo run"
+            except Exception:
+                pass
+
+        # 4. Python: pyproject.toml
+        pyproject_path = os.path.join(dest, "pyproject.toml")
+        if os.path.isfile(pyproject_path):
+            try:
+                with open(pyproject_path, "rb") as f:
+                    py_data = tomllib.load(f)
+                
+                manager = "pip"
+                if "tool" in py_data:
+                    if "poetry" in py_data["tool"]:
+                        manager = "poetry"
+                    elif "uv" in py_data["tool"]:
+                        manager = "uv"
+                    elif "pdm" in py_data["tool"]:
+                        manager = "pdm"
+                
+                project = py_data.get("project", {})
+                requires_python = project.get("requires-python", "")
+                
+                stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Python"
+                if requires_python:
+                    stack_updates["- **Runtime:** TBD"] = f"- **Runtime:** Python {requires_python}"
+                
+                if manager == "poetry":
+                    cmd_updates["- Setup: TBD"] = "- Setup: poetry install"
+                    cmd_updates["- Run: TBD"] = "- Run: poetry run python"
+                elif manager == "uv":
+                    cmd_updates["- Setup: TBD"] = "- Setup: uv sync"
+                    cmd_updates["- Run: TBD"] = "- Run: uv run python"
+                elif manager == "pdm":
+                    cmd_updates["- Setup: TBD"] = "- Setup: pdm install"
+                    cmd_updates["- Run: TBD"] = "- Run: pdm run python"
+                else:
+                    cmd_updates["- Setup: TBD"] = "- Setup: pip install -e ."
+            except Exception:
+                pass
+
+    for k, v in stack_updates.items():
+        content = content.replace(k, v)
+    for k, v in cmd_updates.items():
+        content = content.replace(k, v)
+        
+    return content
+
+
 def apply_updates(dest, args):
     """Apply purpose and wizard data to project files."""
     wizard_run = args.prompt
@@ -192,6 +348,9 @@ def apply_updates(dest, args):
 
         if purpose:
             content = content.replace(
+                "TBD (Describe what this project is for and expected outcomes)",
+                purpose,
+            ).replace(
                 "Describe what this project is for, who it serves, and the expected outcomes.",
                 purpose,
             )
@@ -220,6 +379,9 @@ def apply_updates(dest, args):
                     "- Note delivery deadlines or operational limits."
                 )
                 content = content.replace(old_constraints, f"- {constraints}")
+
+        if getattr(args, "detect", False):
+            content = _run_detect(dest, project_path, content)
 
         with open(project_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
@@ -640,6 +802,7 @@ def main():
     )
     p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_new.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
+    p_new.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
 
     # agentinit init
     p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
@@ -652,6 +815,7 @@ def main():
     )
     p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_init.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
+    p_init.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
 
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
@@ -659,6 +823,7 @@ def main():
     p_minimal.add_argument("--force", action="store_true", help="Overwrite existing agentinit files.")
     p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_minimal.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
+    p_minimal.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
 
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")

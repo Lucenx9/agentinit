@@ -662,6 +662,7 @@ class TestCmdStatus:
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
         self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        (tmp_path / "AGENTS.md").write_text("No broken links", encoding="utf-8")
         cli.cmd_status(make_status_args(minimal=True))
         out = capsys.readouterr().out
         assert "Ready" in out
@@ -768,4 +769,72 @@ class TestCmdStatus:
         assert exc.value.code == 0
         out = capsys.readouterr().out
         assert "Broken reference" not in out
+
+
+class TestDetectManifests:
+    def test_detect_node(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        
+        # Write fake package.json
+        import json
+        pkg = {"packageManager": "pnpm@8", "scripts": {"test": "jest", "dev": "vite"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg), encoding="utf-8")
+        
+        # Call with detect
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+        
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "Node.js" in content
+        assert "- Test: pnpm run test" in content
+        assert "- Run: pnpm run dev" in content
+
+    def test_detect_go(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        
+        (tmp_path / "go.mod").write_text("module myapp\n\ngo 1.22.1\n", encoding="utf-8")
+        
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+        
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- **Language(s):** Go" in content
+        assert "- **Runtime:** Go 1.22.1" in content
+        assert "- Test: go test ./..." in content
+
+    def test_detect_python_poetry(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        
+        toml = '[project]\nrequires-python = ">=3.11"\n\n[tool.poetry]\nname = "myproj"\n'
+        (tmp_path / "pyproject.toml").write_text(toml, encoding="utf-8")
+        
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+        
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        
+        try:
+            import tomllib
+        except ImportError:
+            # If no tomllib, it should not fail but fields remain TBD
+            assert "Python" not in content
+            return
+            
+        assert "- **Language(s):** Python" in content
+        assert "- **Runtime:** Python >=3.11" in content
+        assert "- Setup: poetry install" in content
+
+    def test_detect_no_manifests_leaves_tbd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+        
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- **Runtime:** TBD" in content
+        assert "- Setup: TBD" in content
 

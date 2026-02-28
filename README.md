@@ -124,6 +124,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
+- `--detect` — auto-detect stack and commands from manifest files (facts-only)
 
 ### Add to an existing project
 
@@ -142,6 +143,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
+- `--detect` — auto-detect stack and commands from manifest files (facts-only)
 
 ### Quick minimal scaffold
 
