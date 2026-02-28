@@ -2,9 +2,8 @@
 
 ![CI](https://github.com/Lucenx9/agentinit/actions/workflows/ci.yml/badge.svg)
 
-A tiny CLI that scaffolds **project context files** for coding agents
-(Claude Code, Gemini CLI, GitHub Copilot, Cursor)
-using a **router + source-of-truth** layout.
+Scaffold tiny context files so your AI tools stop asking the same setup questions.
+(Supports Claude Code, Codex, Cursor, Copilot, and Gemini CLI.)
 
 ## Why this exists
 
@@ -17,6 +16,32 @@ Coding agents are more consistent when they always have:
 
 `agentinit` gives you a minimal, version-controlled set of Markdown files
 to keep that context stable and avoid duplicated instruction blocks.
+
+## Save tokens fast (Minimal mode, 2 minutes)
+
+```sh
+# Existing repo/folder:
+agentinit init --minimal
+
+# New project:
+agentinit new myproject --yes --minimal
+```
+
+Then fill only `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
+
+Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
+
+### I just want to save tokens
+
+- Minimal mode creates only 4 files: `AGENTS.md`, `CLAUDE.md`, `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
+- You only need to fill `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
+- Keep reading this README only if you want advanced usage.
+
+### Token savings (rough estimate)
+
+- Tokens saved ≈ tokens you usually re-type per session × number of sessions.
+- If you re-type ~200–400 tokens and do 10–20 sessions/month: ~2k–8k tokens/month.
+- Actual savings depend on your workflow and which tool loads which files.
 
 ## Who is this for?
 
@@ -58,16 +83,6 @@ git init && git add -A && git commit -m "init: add agent context files"
 ```
 
 For an existing project, run `agentinit init` in the repo root instead of `agentinit new`.
-
-## Save tokens fast (Minimal mode)
-
-Create only the core router + docs files:
-
-```sh
-agentinit init --minimal
-# or for a new project:
-agentinit new myproject --yes --minimal
-```
 
 ## Fill the docs fast (AI prompt)
 
@@ -188,7 +203,8 @@ pip install -e . --group dev
 python3 -m pytest tests/ -v
 ```
 
-## Maintainers
+<details>
+<summary>Maintainers</summary>
 
 ### Release
 
@@ -207,6 +223,8 @@ cd -
 git worktree remove ../agentinit-test
 git branch -D agentinit-test
 ```
+
+</details>
 
 ## Planned
 
