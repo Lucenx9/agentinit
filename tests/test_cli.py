@@ -186,6 +186,21 @@ class TestCmdNew:
         cli.cmd_new(args_force)
         assert (tmp_path / "myproj" / "AGENTS.md").read_text() != "custom"
 
+    @pytest.mark.parametrize("bad_name", [
+        "../../etc",
+        "..",
+        "a/b",
+        "a\\b",
+        "/absolute",
+        ".",
+    ])
+    def test_rejects_path_traversal_names(self, tmp_path, bad_name, capsys):
+        args = make_args(name=bad_name, dir=str(tmp_path))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(args)
+        assert exc.value.code == 1
+        assert "invalid project name" in capsys.readouterr().err
+
     def test_missing_template_no_orphan_dir(self, tmp_path, monkeypatch):
         monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))
         args = make_args(name="newproj", dir=str(tmp_path))

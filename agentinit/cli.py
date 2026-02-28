@@ -182,7 +182,17 @@ Use one ADR-lite entry per durable decision.
         f.write(content)
 
 
+def _validate_slug(name):
+    """Reject names that could escape the parent directory."""
+    if not name or name in (".", "..") or "/" in name or "\\" in name or os.path.isabs(name):
+        print(f"Error: invalid project name: {name!r}", file=sys.stderr)
+        print("Name must be a simple directory slug (no slashes, '..', or absolute paths).", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_new(args):
+    _validate_slug(args.name)
+
     if args.dir:
         dest = os.path.join(args.dir, args.name)
     else:
