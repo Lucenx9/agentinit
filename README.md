@@ -124,7 +124,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
-- `--detect` — auto-detect stack and commands from manifest files (facts-only, deterministic; leaves `TBD` if parsing fails)
+- `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; leaves `TBD` if parsing fails). May apply safe conventional defaults for Setup (e.g. `npm install`) when manifests don't specify explicit scripts.
 
 ### Add to an existing project
 
@@ -143,7 +143,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
-- `--detect` — auto-detect stack and commands from manifest files (facts-only, handles missing/odd values safely)
+- `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; handles missing/odd values safely). May apply safe conventional defaults for Setup when manifests don't specify explicit scripts.
 
 ### Quick minimal scaffold
 
