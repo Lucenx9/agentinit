@@ -4,7 +4,4 @@ alwaysApply: true
 globs: ["**/*"]
 ---
 Use `AGENTS.md` as the primary router and source of truth.
-Read `docs/PROJECT.md` for scope and constraints.
-Read `docs/CONVENTIONS.md` for style, naming, testing, and git workflow.
-Track active work in `docs/TODO.md`.
-Log durable decisions in `docs/DECISIONS.md`.
+Load docs/* files on demand as needed for the task.

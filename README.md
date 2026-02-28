@@ -36,7 +36,8 @@ your-project/
     └── CONVENTIONS.md     # how to work in it (fill this)
 ```
 
-- Use `--purpose` to prefill Purpose without prompts, or `--prompt` to run a short interactive wizard.
+- On a terminal, a short interactive wizard runs automatically — use `--yes` to skip it.
+- Use `--purpose "..."` to prefill Purpose non-interactively (e.g. in CI).
 - Keep reading only if you want full mode or advanced usage.
 
 ### Token savings (rough estimate)
@@ -107,17 +108,18 @@ pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.3 agentinit --
 agentinit new myproject
 ```
 
-Purpose defaults to "TBD". You can set it with `--purpose "my purpose"`,
-or run `--prompt` to launch a short interactive wizard (requires a TTY).
+On a terminal, a short interactive wizard asks for purpose, environment,
+constraints, and commands. Use `--yes` to skip it, or `--purpose "..."` to
+prefill non-interactively.
 
 Flags:
 
-- `--yes` / `-y` — skip prompts
+- `--yes` / `-y` — skip the interactive wizard
 - `--dir <path>` — create the project under a different parent directory
 - `--force` — overwrite agentinit files (including TODO/DECISIONS) if the directory already exists
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
-- `--purpose "<text>"` — prefill Purpose without prompts
-- `--prompt` — run a short interactive wizard (requires a TTY)
+- `--purpose "<text>"` — prefill Purpose non-interactively
+- `--prompt` — force the interactive wizard (even if stdin is not a TTY)
 
 ### Add to an existing project
 
@@ -127,13 +129,15 @@ agentinit init
 ```
 
 Copies only missing template files. Safe to run multiple times (idempotent).
+The interactive wizard runs by default on a terminal; pass `--yes` to skip it.
 
 Flags:
 
+- `--yes` / `-y` — skip the interactive wizard
 - `--force` — overwrite existing agentinit files (including TODO/DECISIONS)
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
-- `--purpose "<text>"` — prefill Purpose without prompts
-- `--prompt` — run a short interactive wizard (requires a TTY)
+- `--purpose "<text>"` — prefill Purpose non-interactively
+- `--prompt` — force the interactive wizard (even if stdin is not a TTY)
 
 ### Quick minimal scaffold
 
@@ -141,7 +145,7 @@ Flags:
 agentinit minimal
 ```
 
-Shortcut for `agentinit init --minimal`. Accepts the same flags (`--force`, `--purpose`, `--prompt`).
+Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`).
 
 ### Remove agentinit files
 
@@ -199,6 +203,17 @@ pipx upgrade agentinit
 pipx install --force git+https://github.com/Lucenx9/agentinit.git@main
 ```
 
+## Color output
+
+Output is colored by default on terminals. Color is automatically disabled when
+piping, redirecting, or in CI. You can also disable it explicitly:
+
+```sh
+NO_COLOR=1 agentinit init
+```
+
+Respects the [NO_COLOR](https://no-color.org/) standard and `TERM=dumb`.
+
 ## Development
 
 ```sh
@@ -231,6 +246,8 @@ git branch -D agentinit-test
 
 ## Planned
 
+- `agentinit status` — show which files are present, missing, or still TBD; `--check` for CI
+- `--json` output mode for scripting and CI pipelines
 - `agentinit build` — validate pointers, enforce line limits, and sanity-check structure
 
 ## License

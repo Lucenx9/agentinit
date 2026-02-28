@@ -10,6 +10,44 @@ from datetime import date, datetime
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template")
 
+
+# ---------------------------------------------------------------------------
+# ANSI color helpers (zero dependencies)
+# Respects NO_COLOR (https://no-color.org/), TERM=dumb, and non-TTY streams.
+# ---------------------------------------------------------------------------
+
+def _use_color(stream=None):
+    """Return True when ANSI color codes should be emitted to *stream*."""
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("TERM") == "dumb":
+        return False
+    stream = stream or sys.stdout
+    return hasattr(stream, "isatty") and stream.isatty()
+
+
+_BOLD = "\033[1m"
+_GREEN = "\033[32m"
+_YELLOW = "\033[33m"
+_CYAN = "\033[36m"
+_RED = "\033[31m"
+_RESET = "\033[0m"
+
+
+def _c(text, code, stream=None):
+    """Wrap *text* in an ANSI escape *code* if color is enabled for *stream*."""
+    if _use_color(stream):
+        return f"{code}{text}{_RESET}"
+    return text
+
+
+def _print_next_steps():
+    """Print actionable guidance after a successful init or new."""
+    print(f"\n{_c('Next steps:', _CYAN + _BOLD)}")
+    print(f"  {_c('1.', _CYAN)} Open {_c('docs/PROJECT.md', _BOLD)} and describe your project")
+    print(f"  {_c('2.', _CYAN)} Fill in {_c('docs/CONVENTIONS.md', _BOLD)} with your team's standards")
+    print(f"  {_c('3.', _CYAN)} Run your coding agent — it will read AGENTS.md automatically")
+
 # Files managed by agentinit (relative to project root).
 # Used by --force to decide what can be overwritten.
 MANAGED_FILES = [
@@ -82,28 +120,28 @@ def copy_template(dest, force=False, minimal=False):
         if not os.path.exists(src):
             continue
         if not _resolves_within(dest_real, os.path.dirname(dst)):
-            print(f"Warning: destination parent resolves outside project, skipping: {rel}", file=sys.stderr)
+            print(_c(f"Warning: destination parent resolves outside project, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
             skipped.append(rel)
             continue
         if os.path.lexists(dst):
             if os.path.islink(dst):
-                print(f"Warning: destination is a symlink, skipping: {rel}", file=sys.stderr)
+                print(_c(f"Warning: destination is a symlink, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
                 skipped.append(rel)
                 continue
             if os.path.isdir(dst):
-                print(f"Warning: destination is a directory, skipping: {rel}", file=sys.stderr)
+                print(_c(f"Warning: destination is a directory, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
                 skipped.append(rel)
                 continue
             if rel == ".gitignore":
                 skipped.append(rel)
                 if force:
-                    print(f"  Note: .gitignore already exists, leaving it untouched.")
+                    print(f"  {_c('Note:', _YELLOW)} .gitignore already exists, leaving it untouched.")
                 continue
             if not force:
                 skipped.append(rel)
                 continue
         if not _resolves_within(dest_real, dst):
-            print(f"Warning: destination resolves outside project, skipping: {rel}", file=sys.stderr)
+            print(_c(f"Warning: destination resolves outside project, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
             skipped.append(rel)
             continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -117,7 +155,7 @@ def apply_updates(dest, args):
     wizard_run = args.prompt
     if wizard_run:
         if not sys.stdin.isatty():
-            print("Error: --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.", file=sys.stderr)
+            print(_c("Error:", _RED, sys.stderr) + " --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.", file=sys.stderr)
             sys.exit(1)
         purpose = args.purpose
         while not purpose:
@@ -133,7 +171,7 @@ def apply_updates(dest, args):
 
     project_path = os.path.join(dest, "docs", "PROJECT.md")
     if not os.path.isfile(project_path):
-        print("Warning: docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
+        print(_c("Warning:", _YELLOW, sys.stderr) + " docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
     else:
         with open(project_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -199,7 +237,7 @@ def write_todo(dest, force=False):
     """
     path = os.path.join(dest, "docs", "TODO.md")
     if os.path.exists(path) and not force:
-        print(f"Warning: {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(_c("Warning:", _YELLOW, sys.stderr) + f" {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     content = """\
@@ -229,7 +267,7 @@ def write_decisions(dest, force=False):
     """
     path = os.path.join(dest, "docs", "DECISIONS.md")
     if os.path.exists(path) and not force:
-        print(f"Warning: {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(_c("Warning:", _YELLOW, sys.stderr) + f" {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     today = date.today().isoformat()
@@ -259,7 +297,7 @@ def cmd_new(args):
     # Reject names whose final component is '.' or '..' to prevent traversal.
     basename = os.path.basename(os.path.normpath(args.name))
     if not basename or basename in (".", ".."):
-        print(f"Error: invalid project name: {args.name!r}", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + f" invalid project name: {args.name!r}", file=sys.stderr)
         print("The project name must not resolve to '.' or '..'.", file=sys.stderr)
         sys.exit(1)
 
@@ -271,20 +309,20 @@ def cmd_new(args):
     dest = os.path.abspath(dest)
 
     if os.path.exists(dest) and not args.force:
-        print(f"Error: directory already exists: {dest}", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + f" directory already exists: {dest}", file=sys.stderr)
         print("Use --force to overwrite agentinit files.", file=sys.stderr)
         sys.exit(1)
 
     # Validate template before creating anything.
     if not os.path.isdir(TEMPLATE_DIR):
-        print("Error: template directory not found. Installation may be corrupt.", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + " template directory not found. Installation may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
     # Create dir and copy template
     os.makedirs(dest, exist_ok=True)
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
     if not copied and not skipped:
-        print("Error: no template files copied. Installation may be corrupt.", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + " no template files copied. Installation may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
     # Customize generated files
@@ -293,11 +331,12 @@ def cmd_new(args):
         write_todo(dest, force=args.force)
         write_decisions(dest, force=args.force)
 
-    print(f"Created project at {dest}")
+    print(_c("Created project", _GREEN + _BOLD) + f" at {dest}")
     if copied:
         print(f"  Copied: {len(copied)} files")
     if skipped:
         print(f"  Skipped (already exist): {', '.join(skipped)}")
+    _print_next_steps()
 
 
 def cmd_init(args):
@@ -306,21 +345,23 @@ def cmd_init(args):
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
 
     if not copied and not skipped:
-        print("Nothing to do — template directory not found.", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + " template directory not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     apply_updates(dest, args)
 
     if copied:
-        print(f"Copied {len(copied)} files:")
+        print(f"{_c('Copied', _GREEN)} {len(copied)} files:")
         for f in copied:
-            print(f"  + {f}")
+            print(f"  {_c('+', _GREEN)} {f}")
     if skipped:
-        print(f"Skipped {len(skipped)} files (already exist):")
+        print(f"{_c('Skipped', _YELLOW)} {len(skipped)} files (already exist):")
         for f in skipped:
-            print(f"  ~ {f}")
+            print(f"  {_c('~', _YELLOW)} {f}")
     if not copied:
         print("All agentinit files already present. Nothing to copy.")
+    else:
+        _print_next_steps()
 
 
 def cmd_remove(args):
@@ -349,9 +390,12 @@ def cmd_remove(args):
     action = "archive" if archive else "remove"
     for rel, is_dir in found:
         if is_dir:
-            print(f"  ! {rel} (directory; will skip)")
+            print(f"  {_c('!', _YELLOW)} {rel} (directory; will skip)")
             continue
-        print(f"  {'→' if archive else '×'} {rel}")
+        if archive:
+            print(f"  {_c('→', _CYAN)} {rel}")
+        else:
+            print(f"  {_c('×', _RED)} {rel}")
     if missing:
         for rel in missing:
             print(f"  - {rel} (already absent)")
@@ -365,7 +409,7 @@ def cmd_remove(args):
     if not args.force:
         actionable = sum(1 for _, is_dir in found if not is_dir)
         if not sys.stdin.isatty():
-            print("Error: confirmation requires a terminal. Use --force to skip.", file=sys.stderr)
+            print(_c("Error:", _RED, sys.stderr) + " confirmation requires a terminal. Use --force to skip.", file=sys.stderr)
             sys.exit(1)
         try:
             answer = input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ").strip().lower()
@@ -383,7 +427,7 @@ def cmd_remove(args):
         archived = 0
         for rel, is_dir in found:
             if is_dir:
-                print(f"Warning: managed path is a directory, skipping archive: {rel}", file=sys.stderr)
+                print(_c("Warning:", _YELLOW, sys.stderr) + f" managed path is a directory, skipping archive: {rel}", file=sys.stderr)
                 continue
             src = os.path.join(dest, rel)
             dst = os.path.join(archive_dir, rel)
@@ -392,20 +436,20 @@ def cmd_remove(args):
                 shutil.move(src, dst)
                 archived += 1
             except OSError as e:
-                print(f"Error: failed to archive {rel}: {e}", file=sys.stderr)
+                print(_c("Error:", _RED, sys.stderr) + f" failed to archive {rel}: {e}", file=sys.stderr)
                 continue
         print(f"Archived {archived} file(s) to .agentinit-archive/{ts}/")
     else:
         removed = 0
         for rel, is_dir in found:
             if is_dir:
-                print(f"Warning: managed path is a directory, skipping remove: {rel}", file=sys.stderr)
+                print(_c("Warning:", _YELLOW, sys.stderr) + f" managed path is a directory, skipping remove: {rel}", file=sys.stderr)
                 continue
             try:
                 os.remove(os.path.join(dest, rel))
                 removed += 1
             except OSError as e:
-                print(f"Error: failed to remove {rel}: {e}", file=sys.stderr)
+                print(_c("Error:", _RED, sys.stderr) + f" failed to remove {rel}: {e}", file=sys.stderr)
                 continue
         print(f"Removed {removed} file(s).")
 
@@ -432,7 +476,7 @@ def main():
     # agentinit new <name>
     p_new = sub.add_parser("new", help="Create a new project with agent context files.")
     p_new.add_argument("name", help="Project directory name.")
-    p_new.add_argument("--yes", "-y", action="store_true", help="Skip prompts (set purpose to TBD).")
+    p_new.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
     p_new.add_argument("--dir", help="Parent directory (default: current directory).")
     p_new.add_argument("--force", action="store_true", help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.")
     p_new.add_argument(
@@ -441,10 +485,11 @@ def main():
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_new.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
+    p_new.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
 
     # agentinit init
     p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
+    p_init.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
     p_init.add_argument("--force", action="store_true", help="Overwrite existing agentinit files (including TODO/DECISIONS).")
     p_init.add_argument(
         "--minimal",
@@ -452,13 +497,14 @@ def main():
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_init.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
+    p_init.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
 
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
+    p_minimal.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
     p_minimal.add_argument("--force", action="store_true", help="Overwrite existing agentinit files.")
     p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_minimal.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
+    p_minimal.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
 
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")
@@ -472,9 +518,14 @@ def main():
         parser.print_help()
         return
 
-    if args.command == "new":
-        if getattr(args, "yes", False) and args.prompt:
+    # Auto-enable interactive wizard on TTY unless --yes was passed.
+    if args.command in ("new", "init", "minimal"):
+        if getattr(args, "yes", False):
             args.prompt = False
+        elif not args.prompt and sys.stdin.isatty():
+            args.prompt = True
+
+    if args.command == "new":
         cmd_new(args)
     elif args.command == "init":
         cmd_init(args)

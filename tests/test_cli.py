@@ -354,7 +354,7 @@ class TestCmdInit:
 class TestCmdMinimal:
     def test_creates_only_core_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal"])
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes"])
         cli.main()
         files = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file())
         assert files == [
@@ -366,7 +366,7 @@ class TestCmdMinimal:
 
     def test_with_purpose(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--purpose", "Quick test"])
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes", "--purpose", "Quick test"])
         cli.main()
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "Quick test" in content
@@ -381,7 +381,7 @@ class TestCmdMinimal:
         dir_b = tmp_path / "b"
         dir_b.mkdir()
         monkeypatch.chdir(dir_b)
-        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal"])
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes"])
         cli.main()
 
         files_a = sorted(str(p.relative_to(dir_a)) for p in dir_a.rglob("*") if p.is_file())
