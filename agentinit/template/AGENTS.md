@@ -11,6 +11,7 @@ Read these first:
 - docs/DECISIONS.md
 
 Commands (TBD):
+
 - Setup: TBD
 - Build: TBD
 - Test: TBD
