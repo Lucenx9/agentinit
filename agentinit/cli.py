@@ -306,7 +306,7 @@ def cmd_init(args):
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
 
     if not copied and not skipped:
-        print("Nothing to do — template directory not found.")
+        print("Nothing to do — template directory not found.", file=sys.stderr)
         sys.exit(1)
         
     apply_updates(dest, args)
@@ -364,7 +364,14 @@ def cmd_remove(args):
     # Confirm unless --force.
     if not args.force:
         actionable = sum(1 for _, is_dir in found if not is_dir)
-        answer = input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ").strip().lower()
+        if not sys.stdin.isatty():
+            print("Error: confirmation requires a terminal. Use --force to skip.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            answer = input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return
         if answer != "y":
             print("Aborted.")
             return
@@ -466,6 +473,8 @@ def main():
         return
 
     if args.command == "new":
+        if getattr(args, "yes", False) and args.prompt:
+            args.prompt = False
         cmd_new(args)
     elif args.command == "init":
         cmd_init(args)

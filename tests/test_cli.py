@@ -262,6 +262,16 @@ class TestCmdNew:
         assert "Custom Purpose" in content
         assert "Describe what this project is for" not in content
 
+    def test_yes_overrides_prompt(self, tmp_path, monkeypatch):
+        """--yes disables --prompt so no interactive wizard runs."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        monkeypatch.setattr(sys, "argv", [
+            "agentinit", "new", "proj", "--yes", "--prompt", "--dir", str(tmp_path),
+        ])
+        cli.main()
+        # Should succeed without prompting (--yes wins over --prompt)
+        assert (tmp_path / "proj" / "AGENTS.md").exists()
+
 
 # ---------------------------------------------------------------------------
 # cmd_init
@@ -311,6 +321,16 @@ class TestCmdInit:
 
         assert project.read_text() == "custom project"
         assert conventions.read_text() == "custom conventions"
+
+    def test_missing_template_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        fake = tmp_path / "empty_template"
+        fake.mkdir()
+        monkeypatch.setattr(cli, "TEMPLATE_DIR", str(fake))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_init(make_init_args())
+        assert exc.value.code == 1
+        assert "template directory not found" in capsys.readouterr().err
 
     def test_purpose_prefills_project(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -407,6 +427,15 @@ class TestCmdRemove:
         cli.cmd_init(make_init_args())
         cli.cmd_remove(make_remove_args())
         assert not (tmp_path / "docs").exists()
+
+    def test_confirm_fails_on_non_tty(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_remove(make_remove_args(force=False))
+        assert exc.value.code == 1
+        assert "requires a terminal" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------
