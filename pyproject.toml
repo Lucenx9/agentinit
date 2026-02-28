@@ -24,3 +24,9 @@ agentinit = [
     "template/.cursor/rules/*",
     "template/.github/*",
 ]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

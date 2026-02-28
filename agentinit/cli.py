@@ -109,19 +109,26 @@ def write_purpose(dest, purpose):
     if not os.path.isfile(path):
         print("Warning: docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
         return
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         content = f.read()
     content = content.replace(
         "Describe what this project is for, who it serves, and the expected outcomes.",
         purpose,
     )
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
-def write_todo(dest):
-    """Write a bootstrap TODO.md for a new project."""
+def write_todo(dest, force=False):
+    """Write a bootstrap TODO.md for a new project.
+
+    Skips if the file already exists unless force is True.
+    """
     path = os.path.join(dest, "docs", "TODO.md")
+    if os.path.exists(path) and not force:
+        print(f"Warning: {os.path.relpath(path)} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     content = """\
 # TODO
 
@@ -138,13 +145,20 @@ def write_todo(dest):
 ## Done
 - Scaffolded project with agentinit.
 """
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
-def write_decisions(dest):
-    """Write DECISIONS.md with the first ADR-lite entry."""
+def write_decisions(dest, force=False):
+    """Write DECISIONS.md with the first ADR-lite entry.
+
+    Skips if the file already exists unless force is True.
+    """
     path = os.path.join(dest, "docs", "DECISIONS.md")
+    if os.path.exists(path) and not force:
+        print(f"Warning: {os.path.relpath(path)} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     today = date.today().isoformat()
     content = f"""\
 # Decisions
@@ -164,7 +178,7 @@ Use one ADR-lite entry per durable decision.
 - Rationale: Provides a single source of truth (AGENTS.md + docs/*) that all coding agents can share.
 - Alternatives: Per-agent full instructions; rejected due to drift risk and maintenance overhead.
 """
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
@@ -189,17 +203,22 @@ def cmd_new(args):
         if not purpose:
             purpose = "TBD"
 
+    # Validate template before creating anything.
+    if not os.path.isdir(TEMPLATE_DIR):
+        print("Error: template directory not found. Installation may be corrupt.", file=sys.stderr)
+        sys.exit(1)
+
     # Create dir and copy template
     os.makedirs(dest, exist_ok=True)
     copied, skipped = copy_template(dest, force=args.force)
     if not copied and not skipped:
-        print("Error: template directory not found. Installation may be corrupt.", file=sys.stderr)
+        print("Error: no template files copied. Installation may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
     # Customize generated files
     write_purpose(dest, purpose)
-    write_todo(dest)
-    write_decisions(dest)
+    write_todo(dest, force=args.force)
+    write_decisions(dest, force=args.force)
 
     print(f"Created project at {dest}")
     if copied:
@@ -328,11 +347,11 @@ def main():
     p_new.add_argument("name", help="Project directory name.")
     p_new.add_argument("--yes", "-y", action="store_true", help="Skip prompts (set purpose to TBD).")
     p_new.add_argument("--dir", help="Parent directory (default: current directory).")
-    p_new.add_argument("--force", action="store_true", help="Overwrite agentinit files if directory exists.")
+    p_new.add_argument("--force", action="store_true", help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.")
 
     # agentinit init
     p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
-    p_init.add_argument("--force", action="store_true", help="Overwrite existing agentinit files.")
+    p_init.add_argument("--force", action="store_true", help="Overwrite existing agentinit files (including TODO/DECISIONS).")
 
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")

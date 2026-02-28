@@ -1,33 +1,36 @@
-# Project Template
+# agentinit
 
 ## Purpose
 
-Describe what this project is for, who it serves, and the expected outcomes.
+CLI tool that scaffolds standardized agent context/memory files (AGENTS.md, docs/*)
+into any project, so coding agents (Claude Code, Gemini CLI, Copilot, Cursor) share
+a single source of truth for project knowledge.
 
-## Stack (TBD)
+## Stack
 
-- Runtime: TBD
-- Language(s): TBD
-- Framework(s): TBD
-- Storage/Infra: TBD
+- Runtime: Python >=3.10 (CPython)
+- Language: Python 3
+- Build: setuptools (pyproject.toml)
+- CI: GitHub Actions (smoke tests, markdownlint, lychee link checker)
 
-## Commands (TBD)
+## Commands
 
-- Setup: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
-- Run: TBD
+- Setup: `pip install -e . --group dev`
+- Test: `python3 -m pytest tests/ -v`
+- Lint/Format: markdownlint via CI (no local lint configured)
+- Run: `agentinit --help`
 
 ## Layout
 
 - `AGENTS.md`: Primary router.
 - `docs/`: Source-of-truth context and memory files.
-- `src/` or equivalent: TBD.
-- `tests/` or equivalent: TBD.
+- `agentinit/`: Python package (cli.py + template/).
+- `agentinit/template/`: Scaffold files copied into new projects.
+- `tests/`: pytest test suite.
+- `cli/agentinit.py`: Legacy shim (not installed via package).
 
 ## Constraints
 
-- Document non-negotiable constraints here.
-- List security/compliance/performance boundaries.
-- Note delivery deadlines or operational limits.
+- Must work on Python 3.10+ with no third-party runtime dependencies.
+- Template files must never escape the destination directory (symlink/path-traversal checks).
+- .gitignore is never overwritten, even with --force.

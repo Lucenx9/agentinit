@@ -9,11 +9,11 @@ Read these first:
 - docs/CONVENTIONS.md
 - docs/TODO.md
 - docs/DECISIONS.md
-Commands (TBD):
-- Install: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
+Commands:
+- Install: `pip install -e . --group dev`
+- Test: `python3 -m pytest tests/ -v`
+- Lint/Format: markdownlint (CI only)
+- Run: `agentinit --help`
 General rules:
 
 1. Follow docs/* before making changes.

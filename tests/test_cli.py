@@ -1,0 +1,298 @@
+"""Tests for agentinit.cli."""
+
+import argparse
+import os
+import sys
+
+import pytest
+
+import agentinit.cli as cli
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_args(**kwargs):
+    """Build an argparse.Namespace with sensible defaults for cmd_new."""
+    defaults = {
+        "name": "proj",
+        "dir": None,
+        "force": False,
+        "yes": True,
+    }
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+def make_init_args(**kwargs):
+    defaults = {"force": False}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+def make_remove_args(**kwargs):
+    defaults = {"force": True, "dry_run": False, "archive": False}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+# ---------------------------------------------------------------------------
+# copy_template
+# ---------------------------------------------------------------------------
+
+class TestCopyTemplate:
+    def test_copies_managed_files(self, tmp_path):
+        copied, skipped = cli.copy_template(str(tmp_path))
+        assert len(copied) > 0
+        assert (tmp_path / "AGENTS.md").exists()
+        assert (tmp_path / "docs" / "PROJECT.md").exists()
+
+    def test_skips_existing_without_force(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        copied, skipped = cli.copy_template(str(tmp_path))
+        assert copied == []
+        assert len(skipped) > 0
+
+    def test_overwrites_with_force(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        (tmp_path / "AGENTS.md").write_text("custom")
+        copied, _ = cli.copy_template(str(tmp_path), force=True)
+        assert "AGENTS.md" in copied
+        assert (tmp_path / "AGENTS.md").read_text() != "custom"
+
+    def test_gitignore_never_overwritten(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        (tmp_path / ".gitignore").write_text("custom")
+        cli.copy_template(str(tmp_path), force=True)
+        assert (tmp_path / ".gitignore").read_text() == "custom"
+
+    def test_skips_symlink_destination(self, tmp_path):
+        target = tmp_path / "target"
+        target.write_text("x")
+        agents = tmp_path / "AGENTS.md"
+        agents.symlink_to(target)
+        _, skipped = cli.copy_template(str(tmp_path))
+        assert "AGENTS.md" in skipped
+
+    def test_empty_template_dir(self, tmp_path, monkeypatch):
+        fake = tmp_path / "empty_template"
+        fake.mkdir()
+        monkeypatch.setattr(cli, "TEMPLATE_DIR", str(fake))
+        copied, skipped = cli.copy_template(str(tmp_path / "dest"))
+        assert copied == []
+        assert skipped == []
+
+
+# ---------------------------------------------------------------------------
+# write_todo / write_decisions
+# ---------------------------------------------------------------------------
+
+class TestWriteTodo:
+    def test_creates_file(self, tmp_path):
+        cli.write_todo(str(tmp_path))
+        assert (tmp_path / "docs" / "TODO.md").exists()
+        content = (tmp_path / "docs" / "TODO.md").read_text(encoding="utf-8")
+        assert "# TODO" in content
+
+    def test_creates_docs_dir(self, tmp_path):
+        dest = tmp_path / "sub"
+        dest.mkdir()
+        cli.write_todo(str(dest))
+        assert (dest / "docs" / "TODO.md").exists()
+
+    def test_skips_existing_without_force(self, tmp_path, capsys):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "TODO.md").write_text("my stuff")
+        cli.write_todo(str(tmp_path), force=False)
+        assert (docs / "TODO.md").read_text() == "my stuff"
+        assert "already exists" in capsys.readouterr().err
+
+    def test_overwrites_with_force(self, tmp_path):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "TODO.md").write_text("my stuff")
+        cli.write_todo(str(tmp_path), force=True)
+        assert "# TODO" in (docs / "TODO.md").read_text()
+
+
+class TestWriteDecisions:
+    def test_creates_file(self, tmp_path):
+        cli.write_decisions(str(tmp_path))
+        path = tmp_path / "docs" / "DECISIONS.md"
+        assert path.exists()
+        assert "# Decisions" in path.read_text(encoding="utf-8")
+
+    def test_skips_existing_without_force(self, tmp_path, capsys):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "DECISIONS.md").write_text("keep")
+        cli.write_decisions(str(tmp_path), force=False)
+        assert (docs / "DECISIONS.md").read_text() == "keep"
+        assert "already exists" in capsys.readouterr().err
+
+    def test_overwrites_with_force(self, tmp_path):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "DECISIONS.md").write_text("old")
+        cli.write_decisions(str(tmp_path), force=True)
+        assert "# Decisions" in (docs / "DECISIONS.md").read_text()
+
+
+# ---------------------------------------------------------------------------
+# write_purpose
+# ---------------------------------------------------------------------------
+
+class TestWritePurpose:
+    def test_replaces_placeholder(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        cli.write_purpose(str(tmp_path), "My awesome project")
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "My awesome project" in content
+        assert "Describe what this project is for" not in content
+
+    def test_noop_when_file_missing(self, tmp_path, capsys):
+        cli.write_purpose(str(tmp_path), "anything")
+        assert "not a regular file" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# cmd_new
+# ---------------------------------------------------------------------------
+
+class TestCmdNew:
+    def test_creates_project(self, tmp_path):
+        args = make_args(name="myproj", dir=str(tmp_path))
+        cli.cmd_new(args)
+        proj = tmp_path / "myproj"
+        assert proj.is_dir()
+        assert (proj / "AGENTS.md").exists()
+        assert (proj / "docs" / "TODO.md").exists()
+        assert (proj / "docs" / "DECISIONS.md").exists()
+
+    def test_fails_if_exists_no_force(self, tmp_path):
+        (tmp_path / "myproj").mkdir()
+        args = make_args(name="myproj", dir=str(tmp_path))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(args)
+        assert exc.value.code == 1
+
+    def test_force_overwrites(self, tmp_path):
+        args = make_args(name="myproj", dir=str(tmp_path))
+        cli.cmd_new(args)
+        (tmp_path / "myproj" / "AGENTS.md").write_text("custom")
+        args_force = make_args(name="myproj", dir=str(tmp_path), force=True)
+        cli.cmd_new(args_force)
+        assert (tmp_path / "myproj" / "AGENTS.md").read_text() != "custom"
+
+    def test_missing_template_no_orphan_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))
+        args = make_args(name="newproj", dir=str(tmp_path))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(args)
+        assert exc.value.code == 1
+        assert not (tmp_path / "newproj").exists()
+
+    def test_preserves_todo_without_force(self, tmp_path):
+        args = make_args(name="myproj", dir=str(tmp_path))
+        cli.cmd_new(args)
+        todo = tmp_path / "myproj" / "docs" / "TODO.md"
+        todo.write_text("user data")
+        args2 = make_args(name="myproj", dir=str(tmp_path), force=True)
+        # force overwrites template files but also TODO/DECISIONS with --force
+        cli.cmd_new(args2)
+        # with force=True, TODO gets overwritten
+        assert "# TODO" in todo.read_text()
+
+
+# ---------------------------------------------------------------------------
+# cmd_init
+# ---------------------------------------------------------------------------
+
+class TestCmdInit:
+    def test_copies_files_to_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        assert (tmp_path / "AGENTS.md").exists()
+
+    def test_idempotent(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_init(make_init_args())
+        out = capsys.readouterr().out
+        assert "already present" in out
+
+
+# ---------------------------------------------------------------------------
+# cmd_remove
+# ---------------------------------------------------------------------------
+
+class TestCmdRemove:
+    def test_removes_files(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        assert (tmp_path / "AGENTS.md").exists()
+        cli.cmd_remove(make_remove_args())
+        assert not (tmp_path / "AGENTS.md").exists()
+
+    def test_dry_run_keeps_files(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_remove(make_remove_args(dry_run=True))
+        assert (tmp_path / "AGENTS.md").exists()
+        assert "Dry run" in capsys.readouterr().out
+
+    def test_archive_moves_files(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_remove(make_remove_args(archive=True))
+        assert not (tmp_path / "AGENTS.md").exists()
+        archives = list((tmp_path / ".agentinit-archive").iterdir())
+        assert len(archives) == 1
+        assert (archives[0] / "AGENTS.md").exists()
+
+    def test_nothing_to_do(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_remove(make_remove_args())
+        assert "Nothing to do" in capsys.readouterr().out
+
+    def test_cleans_empty_dirs(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_remove(make_remove_args())
+        assert not (tmp_path / "docs").exists()
+
+
+# ---------------------------------------------------------------------------
+# main (argument parsing smoke tests)
+# ---------------------------------------------------------------------------
+
+class TestMain:
+    def test_no_args_prints_help(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["agentinit"])
+        cli.main()
+        assert "usage" in capsys.readouterr().out.lower()
+
+    def test_help_flag(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["agentinit", "--help"])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+
+
+# ---------------------------------------------------------------------------
+# _resolves_within
+# ---------------------------------------------------------------------------
+
+class TestResolvesWithin:
+    def test_inside(self, tmp_path):
+        assert cli._resolves_within(str(tmp_path), str(tmp_path / "sub"))
+
+    def test_outside(self, tmp_path):
+        assert not cli._resolves_within(str(tmp_path), "/tmp")
+
+    def test_symlink_escape(self, tmp_path):
+        escape = tmp_path / "escape"
+        escape.symlink_to("/tmp")
+        assert not cli._resolves_within(str(tmp_path), str(escape))

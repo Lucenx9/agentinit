@@ -30,8 +30,8 @@ to keep that context stable and avoid duplicated instruction blocks.
 ### Canonical context
 
 - `AGENTS.md` — canonical router for this template (kept short)
-- `docs/PROJECT.md` — project purpose, constraints, layout, key commands (TBD placeholders)
-- `docs/CONVENTIONS.md` — style, naming, testing, git workflow (TBD placeholders)
+- `docs/PROJECT.md` — project purpose, stack, commands, layout, constraints
+- `docs/CONVENTIONS.md` — style, naming, testing, git workflow
 - `docs/TODO.md` — active work (in progress / next / blocked / done)
 - `docs/DECISIONS.md` — ADR-lite decision log
 
@@ -78,7 +78,7 @@ Flags:
 
 - `--yes` / `-y` — skip prompts
 - `--dir <path>` — create the project under a different parent directory
-- `--force` — overwrite agentinit files if the directory already exists (user files are never deleted)
+- `--force` — overwrite agentinit files (including TODO/DECISIONS) if the directory already exists
 
 ### Add to an existing project
 
@@ -91,7 +91,7 @@ Copies only missing template files. Safe to run multiple times (idempotent).
 
 Flags:
 
-- `--force` — overwrite existing agentinit files
+- `--force` — overwrite existing agentinit files (including TODO/DECISIONS)
 
 ### Remove agentinit files
 
