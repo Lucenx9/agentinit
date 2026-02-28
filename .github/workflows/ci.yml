@@ -47,6 +47,7 @@ jobs:
 
           cd "$PROJ"
           agentinit init
+          agentinit minimal --help
           agentinit remove --dry-run
 
           echo "keep" > KEEP_ME.txt
@@ -70,6 +71,8 @@ jobs:
 
           Set-Location $proj
           agentinit init
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          agentinit minimal --help
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           agentinit remove --dry-run
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
