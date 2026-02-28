@@ -176,7 +176,7 @@ def _run_detect(dest, project_path, content):
             
             stack_updates["- **Runtime:** TBD"] = "- **Runtime:** Node.js"
             
-            pm = data.get("packageManager", "")
+            pm = str(data.get("packageManager") or "")
             manager = "npm"
             if "pnpm" in pm:
                 manager = "pnpm"
@@ -194,7 +194,9 @@ def _run_detect(dest, project_path, content):
                 else:
                     manager = "npm"
             
-            scripts = data.get("scripts", {})
+            scripts = data.get("scripts")
+            if not isinstance(scripts, dict):
+                scripts = {}
             run_prefix = f"{manager} run " if manager not in ("yarn", "bun") else f"{manager} "
             
             if "setup" in scripts:
@@ -254,7 +256,9 @@ def _run_detect(dest, project_path, content):
                 with open(cargo_path, "rb") as f:
                     cargo_data = tomllib.load(f)
                 
-                pkg = cargo_data.get("package", {})
+                pkg = cargo_data.get("package")
+                if not isinstance(pkg, dict):
+                    pkg = {}
                 name = pkg.get("name", "")
                 edition = pkg.get("edition", "")
                 
@@ -279,15 +283,18 @@ def _run_detect(dest, project_path, content):
                     py_data = tomllib.load(f)
                 
                 manager = "pip"
-                if "tool" in py_data:
-                    if "poetry" in py_data["tool"]:
+                tool = py_data.get("tool")
+                if isinstance(tool, dict):
+                    if "poetry" in tool:
                         manager = "poetry"
-                    elif "uv" in py_data["tool"]:
+                    elif "uv" in tool:
                         manager = "uv"
-                    elif "pdm" in py_data["tool"]:
+                    elif "pdm" in tool:
                         manager = "pdm"
                 
-                project = py_data.get("project", {})
+                project = py_data.get("project")
+                if not isinstance(project, dict):
+                    project = {}
                 requires_python = project.get("requires-python", "")
                 
                 stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Python"
@@ -657,6 +664,7 @@ def cmd_status(args):
     tbd = []
     hard_violations = []
     broken_refs = []
+    file_sizes = []
     files_to_check = MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
 
     print(f"{_c('Agent Context Status', _BOLD)}")
@@ -680,6 +688,7 @@ def cmd_status(args):
                 
                 lines = content.splitlines()
                 line_count = len(lines)
+                file_sizes.append((rel, line_count))
                 is_always_loaded = not rel.startswith("docs/") and rel != ".gitignore"
                 
                 status_symbol = _c('+', _GREEN)
@@ -768,6 +777,16 @@ def cmd_status(args):
             issues.append(f"{len(hard_violations)} too large")
         if broken_refs:
             issues.append(f"{len(broken_refs)} broken refs")
+
+        print(f"{_c('Top offenders:', _YELLOW)}")
+        if file_sizes:
+            file_sizes.sort(key=lambda x: x[1], reverse=True)
+            for f_rel, f_lines in file_sizes[:3]:
+                print(f"  {f_rel} ({f_lines} lines)")
+        if broken_refs:
+            print(f"  AGENTS.md: {len(broken_refs)} broken references")
+        print()
+
         print(f"Result: {_c('Action required', _YELLOW)} ({', '.join(issues)})")
         if args.check:
             sys.exit(1)
