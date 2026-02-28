@@ -149,6 +149,19 @@ agentinit minimal
 
 Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`).
 
+### Check project status
+
+```sh
+agentinit status
+```
+
+Shows which agent context files are present, missing, or still need to be filled in (contain 'TBD').
+
+Flags:
+
+- `--check` — exit with code 1 if files are missing or incomplete (useful for CI pipelines)
+- `--minimal` — check only the core minimal files
+
 ### Remove agentinit files
 
 ```sh
@@ -248,7 +261,6 @@ git branch -D agentinit-test
 
 ## Planned
 
-- `agentinit status` — show which files are present, missing, or still TBD; `--check` for CI
 - `--json` output mode for scripting and CI pipelines
 - `agentinit build` — validate pointers, enforce line limits, and sanity-check structure
 

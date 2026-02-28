@@ -486,6 +486,56 @@ def cmd_remove(args):
             print(f"  Cleaned up empty directory: {d}/")
 
 
+def cmd_status(args):
+    """Show the status of agentinit context files in the current directory."""
+    dest = os.path.abspath(".")
+    
+    missing = []
+    tbd = []
+    files_to_check = MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
+    
+    print(f"{_c('Agent Context Status', _BOLD)}")
+    print(f"Directory: {dest}\n")
+    
+    for rel in files_to_check:
+        path = os.path.join(dest, rel)
+        if not os.path.exists(path):
+            missing.append(rel)
+            print(f"  {_c('❌', _RED)} {rel} {_c('(missing)', _RED)}")
+        else:
+            if not os.path.isfile(path):
+                missing.append(rel)
+                print(f"  {_c('❌', _RED)} {rel} {_c('(not a file)', _RED)}")
+                continue
+                
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if "TBD" in content:
+                    tbd.append(rel)
+                    print(f"  {_c('⚠️ ', _YELLOW)} {rel.ljust(35)} {_c('(contains TBD, needs update)', _YELLOW)}")
+                else:
+                    print(f"  {_c('✅', _GREEN)} {rel}")
+            except Exception:
+                missing.append(rel)
+                print(f"  {_c('❌', _RED)} {rel} {_c('(unreadable)', _RED)}")
+
+    print()
+    if missing or tbd:
+        issues = []
+        if missing:
+            issues.append(f"{len(missing)} missing")
+        if tbd:
+            issues.append(f"{len(tbd)} incomplete")
+        print(f"Result: {_c('Action required', _YELLOW)} ({', '.join(issues)})")
+        if args.check:
+            sys.exit(1)
+    else:
+        print(f"Result: {_c('Ready', _GREEN)} (All files present and filled)")
+        if args.check:
+            sys.exit(0)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="agentinit",
@@ -537,6 +587,11 @@ def main():
     p_remove.add_argument("--archive", action="store_true", help="Move files to .agentinit-archive/ instead of deleting.")
     p_remove.add_argument("--force", action="store_true", help="Skip confirmation prompt.")
 
+    # agentinit status
+    p_status = sub.add_parser("status", help="Show which agent context files are present, missing, or need updates.")
+    p_status.add_argument("--check", action="store_true", help="Exit with code 1 if files are missing or incomplete. Useful for CI.")
+    p_status.add_argument("--minimal", action="store_true", help="Check only the minimal core files.")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -559,6 +614,8 @@ def main():
         cmd_init(args)
     elif args.command == "remove":
         cmd_remove(args)
+    elif args.command == "status":
+        cmd_status(args)
     else:
         parser.print_help()
         sys.exit(1)
