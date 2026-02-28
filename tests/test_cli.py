@@ -792,6 +792,26 @@ class TestCmdStatus:
         assert "Broken reference: docs/missing.md" in out
         assert "Broken reference: docs/also-missing.md" in out
 
+    def test_broken_reference_no_false_positive_from_markdown(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Markdown link syntax must not be reported as a second broken ref."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text(
+            "[broken](docs/nope.md)",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "Broken reference: docs/nope.md" in out
+        assert out.count("Broken reference:") == 1
+
     def test_gitignore_excluded_from_top_offenders(self, tmp_path, monkeypatch, capsys):
         """Ensure .gitignore is not listed in Top offenders even when it has many lines."""
         monkeypatch.chdir(tmp_path)

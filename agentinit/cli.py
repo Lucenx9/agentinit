@@ -866,6 +866,7 @@ def cmd_status(args):
                             and " " not in line
                             and ("/" in line or "\\" in line)
                             and not line.startswith("#")
+                            and "](" not in line
                         ):
                             potential_paths.add(line)
 
