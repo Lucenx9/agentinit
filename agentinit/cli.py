@@ -489,36 +489,37 @@ def cmd_remove(args):
 def cmd_status(args):
     """Show the status of agentinit context files in the current directory."""
     dest = os.path.abspath(".")
-    
+
     missing = []
     tbd = []
     files_to_check = MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
-    
+
     print(f"{_c('Agent Context Status', _BOLD)}")
     print(f"Directory: {dest}\n")
-    
+
     for rel in files_to_check:
         path = os.path.join(dest, rel)
-        if not os.path.exists(path):
+        if os.path.islink(path) and not os.path.exists(path):
             missing.append(rel)
-            print(f"  {_c('❌', _RED)} {rel} {_c('(missing)', _RED)}")
+            print(f"  {_c('x', _RED)} {rel} {_c('(broken symlink)', _RED)}")
+        elif not os.path.exists(path):
+            missing.append(rel)
+            print(f"  {_c('x', _RED)} {rel} {_c('(missing)', _RED)}")
+        elif not os.path.isfile(path):
+            missing.append(rel)
+            print(f"  {_c('x', _RED)} {rel} {_c('(not a file)', _RED)}")
         else:
-            if not os.path.isfile(path):
-                missing.append(rel)
-                print(f"  {_c('❌', _RED)} {rel} {_c('(not a file)', _RED)}")
-                continue
-                
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     content = f.read()
                 if "TBD" in content:
                     tbd.append(rel)
-                    print(f"  {_c('⚠️ ', _YELLOW)} {rel.ljust(35)} {_c('(contains TBD, needs update)', _YELLOW)}")
+                    print(f"  {_c('!', _YELLOW)} {rel} {_c('(contains TBD, needs update)', _YELLOW)}")
                 else:
-                    print(f"  {_c('✅', _GREEN)} {rel}")
-            except Exception:
+                    print(f"  {_c('+', _GREEN)} {rel}")
+            except (OSError, UnicodeDecodeError):
                 missing.append(rel)
-                print(f"  {_c('❌', _RED)} {rel} {_c('(unreadable)', _RED)}")
+                print(f"  {_c('x', _RED)} {rel} {_c('(unreadable)', _RED)}")
 
     print()
     if missing or tbd:

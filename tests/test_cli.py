@@ -584,3 +584,119 @@ class TestEdgeCases:
         assert "Aborted" in capsys.readouterr().out
         # Files should still exist (removal was aborted)
         assert (tmp_path / "AGENTS.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# cmd_status
+# ---------------------------------------------------------------------------
+
+def make_status_args(**kwargs):
+    defaults = {"check": False, "minimal": False}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+class TestCmdStatus:
+    def _fill_tbd(self, root, files):
+        """Replace all TBD markers in the given managed files."""
+        for rel in files:
+            path = root / rel
+            if path.is_file():
+                content = path.read_text(encoding="utf-8")
+                path.write_text(content.replace("TBD", "done"), encoding="utf-8")
+
+    def test_all_present_and_filled(self, tmp_path, monkeypatch, capsys):
+        """When all files exist and none contain TBD, reports 'Ready'."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+        assert "Ready" in out
+
+    def test_missing_files_reported(self, tmp_path, monkeypatch, capsys):
+        """When no agentinit files exist, all are reported missing."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+        assert "missing" in out
+        assert "Action required" in out
+
+    def test_tbd_files_reported(self, tmp_path, monkeypatch, capsys):
+        """Files containing TBD are flagged as incomplete."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+        assert "incomplete" in out
+        assert "Action required" in out
+
+    def test_check_exits_1_when_issues(self, tmp_path, monkeypatch):
+        """--check should exit with code 1 when files are missing."""
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+
+    def test_check_exits_0_when_ready(self, tmp_path, monkeypatch, capsys):
+        """--check should exit with code 0 when everything is filled."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "Ready" in out
+
+    def test_no_exit_without_check(self, tmp_path, monkeypatch, capsys):
+        """Without --check, cmd_status returns normally (no sys.exit)."""
+        monkeypatch.chdir(tmp_path)
+        # Missing files but no --check: should not raise SystemExit
+        cli.cmd_status(make_status_args(check=False))
+        out = capsys.readouterr().out
+        assert "Action required" in out
+
+    def test_minimal_checks_fewer_files(self, tmp_path, monkeypatch, capsys):
+        """--minimal only checks the 4 core files."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        cli.cmd_status(make_status_args(minimal=True))
+        out = capsys.readouterr().out
+        assert "Ready" in out
+
+    def test_unreadable_file(self, tmp_path, monkeypatch, capsys):
+        """Files that can't be read are reported as unreadable."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        agents = tmp_path / "AGENTS.md"
+        agents.chmod(0o000)
+        try:
+            cli.cmd_status(make_status_args())
+            out = capsys.readouterr().out
+            assert "unreadable" in out
+        finally:
+            agents.chmod(0o644)
+
+    def test_broken_symlink(self, tmp_path, monkeypatch, capsys):
+        """A dangling symlink is reported as 'broken symlink'."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        agents = tmp_path / "AGENTS.md"
+        agents.unlink()
+        agents.symlink_to(tmp_path / "nonexistent")
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+        assert "broken symlink" in out
+
+    def test_not_a_file(self, tmp_path, monkeypatch, capsys):
+        """A directory where a file is expected is reported as 'not a file'."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        agents = tmp_path / "AGENTS.md"
+        agents.unlink()
+        agents.mkdir()
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+        assert "not a file" in out
