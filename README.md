@@ -59,9 +59,9 @@ pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.4
 agentinit new myproject --yes
 cd myproject
 
-# 3. Fill in the docs with your project's real info
+# 3. Open these files in your code editor (VSCode, Cursor, etc.)
+#    and fill them in with your project's real info.
 #    (see "Fill the docs fast" below for an AI-assisted shortcut)
-$EDITOR docs/PROJECT.md docs/CONVENTIONS.md
 
 # 4. Commit and you're done
 git init && git add -A && git commit -m "init: add agent context files"
