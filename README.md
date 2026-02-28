@@ -10,8 +10,9 @@ Pure Python stdlib, no runtime dependencies, nothing touches your source code.
 Works with Claude Code, Codex, Cursor, Copilot, and Gemini CLI.
 
 If you've ever had an agent guess your test command, ignore your style rules,
-or forget what the project does — `agentinit` creates a small set of Markdown
-files that give every agent the same starting context, every session.
+or forget what the project does — `agentinit` creates a small set of **"router-first"** Markdown
+files. Top-level files stay tiny and route every agent to `docs/` for the real context,
+saving thousands of tokens every session.
 
 ## Save tokens fast (Minimal mode, 2 minutes)
 
@@ -44,6 +45,7 @@ your-project/
 
 ### Token savings (rough estimate)
 
+- Top-level routers (`CLAUDE.md`, `GEMINI.md`, Cursor rules) are kept strictly under 15 lines.
 - Tokens saved ≈ tokens you usually re-type per session × number of sessions.
 - If you re-type ~200–400 tokens and do 10–20 sessions/month: ~2k–8k tokens/month.
 - Actual savings depend on your workflow and which tool loads which files.
