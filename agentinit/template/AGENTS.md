@@ -9,11 +9,14 @@ Read these first:
 - docs/CONVENTIONS.md
 - docs/TODO.md
 - docs/DECISIONS.md
+
 Commands (TBD):
-- Install: TBD
+- Setup: TBD
 - Build: TBD
 - Test: TBD
 - Lint/Format: TBD
+- Run: TBD
+
 General rules:
 
 1. Follow docs/* before making changes.

@@ -312,6 +312,20 @@ class TestCmdInit:
         assert project.read_text() == "custom project"
         assert conventions.read_text() == "custom conventions"
 
+    def test_purpose_prefills_project(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="My cool project"))
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "My cool project" in content
+        assert "Describe what this project is for" not in content
+
+    def test_prompt_fails_without_tty(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_init(make_init_args(prompt=True))
+        assert exc.value.code == 1
+
 
 # ---------------------------------------------------------------------------
 # cmd_minimal (alias for init --minimal)
