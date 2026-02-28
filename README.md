@@ -83,7 +83,7 @@ agentinit remove --force      # skip confirmation prompt
 ### Source of truth
 
 | File | Purpose |
-|------|---------|
+| ---- | ------- |
 | `AGENTS.md` | Primary router — all agents start here |
 | `docs/PROJECT.md` | Project purpose, stack, commands, layout, constraints |
 | `docs/CONVENTIONS.md` | Style, naming, testing, git workflow |
@@ -93,7 +93,7 @@ agentinit remove --force      # skip confirmation prompt
 ### Tool-specific routers
 
 | File | Tool |
-|------|------|
+| ---- | ---- |
 | `CLAUDE.md` | Claude Code |
 | `GEMINI.md` | Gemini CLI |
 | `.github/copilot-instructions.md` | GitHub Copilot |
