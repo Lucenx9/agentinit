@@ -2,20 +2,14 @@
 
 ![CI](https://github.com/Lucenx9/agentinit/actions/workflows/ci.yml/badge.svg)
 
-Scaffold tiny context files so your AI tools stop asking the same setup questions.
-(Supports Claude Code, Codex, Cursor, Copilot, and Gemini CLI.)
+Scaffold tiny context files so your AI coding agents stop guessing your setup.
+Pure Python stdlib, no runtime dependencies, nothing touches your source code.
 
-## Why this exists
+Works with Claude Code, Codex, Cursor, Copilot, and Gemini CLI.
 
-Coding agents are more consistent when they always have:
-
-- what the project is
-- how to work in it (style, rules, testing)
-- what's being worked on right now
-- what decisions are already made
-
-`agentinit` gives you a minimal, version-controlled set of Markdown files
-to keep that context stable and avoid duplicated instruction blocks.
+If you've ever had an agent guess your test command, ignore your style rules,
+or forget what the project does — `agentinit` creates a small set of Markdown
+files that give every agent the same starting context, every session.
 
 ## Save tokens fast (Minimal mode, 2 minutes)
 
@@ -50,27 +44,6 @@ your-project/
 - Tokens saved ≈ tokens you usually re-type per session × number of sessions.
 - If you re-type ~200–400 tokens and do 10–20 sessions/month: ~2k–8k tokens/month.
 - Actual savings depend on your workflow and which tool loads which files.
-
-## Who is this for?
-
-Anyone who uses AI coding agents and wants them to behave consistently
-across sessions and tools. If you've ever had an agent guess your test
-command, ignore your style rules, or forget what the project does — this
-is what agentinit fixes.
-
-## What it does (and doesn't)
-
-**Does:**
-
-- Creates a small set of Markdown files (`AGENTS.md`, `docs/*`, tool-specific routers).
-- Gives every agent the same starting context: project purpose, conventions, active work, past decisions.
-- Works with Claude Code, Gemini CLI, GitHub Copilot, and Cursor out of the box.
-
-**Doesn't:**
-
-- Run your agents for you.
-- Require any runtime dependency — it's pure Python stdlib.
-- Touch your source code, configs, or `.gitignore` contents (`.gitignore` is never overwritten).
 
 ## Quickstart (60 seconds)
 
