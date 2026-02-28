@@ -50,7 +50,7 @@ your-project/
 
 ```sh
 # 1. Install (stable)
-pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.4
 
 # Or bleeding edge:
 # pipx install git+https://github.com/Lucenx9/agentinit.git@main
@@ -88,13 +88,13 @@ Requires Python 3.10+.
 
 ```sh
 # With pipx (recommended, stable)
-pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.4
 
 # With pip
-pip install git+https://github.com/Lucenx9/agentinit.git@v0.2.3
+pip install git+https://github.com/Lucenx9/agentinit.git@v0.2.4
 
 # Or run one-off without installing
-pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.3 agentinit --help
+pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.4 agentinit --help
 
 # Bleeding edge (latest on main)
 # pipx install git+https://github.com/Lucenx9/agentinit.git@main

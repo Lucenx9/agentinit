@@ -135,7 +135,7 @@ def copy_template(dest, force=False, minimal=False):
             if rel == ".gitignore":
                 skipped.append(rel)
                 if force:
-                    print(f"  {_c('Note:', _YELLOW)} .gitignore already exists, leaving it untouched.")
+                    print(_c("Note:", _YELLOW, sys.stderr) + " .gitignore already exists, leaving it untouched.", file=sys.stderr)
                 continue
             if not force:
                 skipped.append(rel)
@@ -145,7 +145,16 @@ def copy_template(dest, force=False, minimal=False):
             skipped.append(rel)
             continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(src, dst)
+        try:
+            shutil.copy2(src, dst)
+        except PermissionError:
+            if force:
+                os.chmod(dst, 0o644)
+                shutil.copy2(src, dst)
+            else:
+                print(_c("Warning:", _YELLOW, sys.stderr) + f" permission denied, skipping: {rel}", file=sys.stderr)
+                skipped.append(rel)
+                continue
         copied.append(rel)
     return copied, skipped
 
@@ -157,12 +166,16 @@ def apply_updates(dest, args):
         if not sys.stdin.isatty():
             print(_c("Error:", _RED, sys.stderr) + " --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.", file=sys.stderr)
             sys.exit(1)
-        purpose = args.purpose
-        while not purpose:
-            purpose = input("Purpose: ").strip()
-        env = input("Environment (OS/device) [optional]: ").strip()
-        constraints = input("Constraints [optional]: ").strip()
-        commands = input("Commands I can run (comma-separated) [optional]: ").strip()
+        try:
+            purpose = args.purpose
+            while not purpose:
+                purpose = input("Purpose: ").strip()
+            env = input("Environment (OS/device) [optional]: ").strip()
+            constraints = input("Constraints [optional]: ").strip()
+            commands = input("Commands I can run (comma-separated) [optional]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            sys.exit(130)
     else:
         purpose = args.purpose or "TBD"
         env = ""
@@ -294,6 +307,10 @@ Use one ADR-lite entry per durable decision.
 
 
 def cmd_new(args):
+    # --yes disables the interactive wizard even when called directly.
+    if getattr(args, "yes", False):
+        args.prompt = False
+
     # Reject names whose final component is '.' or '..' to prevent traversal.
     basename = os.path.basename(os.path.normpath(args.name))
     if not basename or basename in (".", ".."):
@@ -340,12 +357,20 @@ def cmd_new(args):
 
 
 def cmd_init(args):
+    # --yes disables the interactive wizard even when called directly.
+    if getattr(args, "yes", False):
+        args.prompt = False
+
     dest = os.path.abspath(".")
+
+    if not os.path.isdir(TEMPLATE_DIR):
+        print(_c("Error:", _RED, sys.stderr) + " template directory not found. Installation may be corrupt.", file=sys.stderr)
+        sys.exit(1)
 
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
 
     if not copied and not skipped:
-        print(_c("Error:", _RED, sys.stderr) + " template directory not found.", file=sys.stderr)
+        print(_c("Error:", _RED, sys.stderr) + " no template files copied. Installation may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
     apply_updates(dest, args)
@@ -422,7 +447,7 @@ def cmd_remove(args):
 
     # Perform removal or archival.
     if archive:
-        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         archive_dir = os.path.join(dest, ".agentinit-archive", ts)
         archived = 0
         for rel, is_dir in found:

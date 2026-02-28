@@ -322,7 +322,15 @@ class TestCmdInit:
         assert project.read_text() == "custom project"
         assert conventions.read_text() == "custom conventions"
 
-    def test_missing_template_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
+    def test_missing_template_dir_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_init(make_init_args())
+        assert exc.value.code == 1
+        assert "template directory not found" in capsys.readouterr().err
+
+    def test_empty_template_dir_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         fake = tmp_path / "empty_template"
         fake.mkdir()
@@ -330,7 +338,7 @@ class TestCmdInit:
         with pytest.raises(SystemExit) as exc:
             cli.cmd_init(make_init_args())
         assert exc.value.code == 1
-        assert "template directory not found" in capsys.readouterr().err
+        assert "no template files copied" in capsys.readouterr().err
 
     def test_purpose_prefills_project(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -345,6 +353,26 @@ class TestCmdInit:
         with pytest.raises(SystemExit) as exc:
             cli.cmd_init(make_init_args(prompt=True))
         assert exc.value.code == 1
+
+    def test_wizard_eof_aborts(self, tmp_path, monkeypatch, capsys):
+        """Ctrl+D during wizard prints 'Aborted.' and exits 130."""
+        monkeypatch.chdir(tmp_path)
+        cli.copy_template(str(tmp_path))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        import builtins
+        monkeypatch.setattr(builtins, "input", lambda _prompt="": (_ for _ in ()).throw(EOFError))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_init(make_init_args(prompt=True))
+        assert exc.value.code == 130
+        assert "Aborted" in capsys.readouterr().out
+
+    def test_yes_disables_prompt_in_direct_call(self, tmp_path, monkeypatch):
+        """--yes should disable wizard even when calling cmd_init directly."""
+        monkeypatch.chdir(tmp_path)
+        args = make_init_args(yes=True, prompt=True)
+        cli.cmd_init(args)
+        assert not args.prompt
+        assert (tmp_path / "AGENTS.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -479,3 +507,80 @@ class TestResolvesWithin:
         escape = tmp_path / "escape"
         escape.symlink_to("/tmp")
         assert not cli._resolves_within(str(tmp_path), str(escape))
+
+
+# ---------------------------------------------------------------------------
+# Edge cases: paths, permissions, remove
+# ---------------------------------------------------------------------------
+
+class TestEdgeCases:
+    def test_spaces_in_project_name(self, tmp_path):
+        args = make_args(name="my project", dir=str(tmp_path))
+        cli.cmd_new(args)
+        proj = tmp_path / "my project"
+        assert (proj / "AGENTS.md").exists()
+        assert (proj / "docs" / "PROJECT.md").exists()
+
+    def test_unicode_project_name(self, tmp_path):
+        args = make_args(name="progetto-è-bello", dir=str(tmp_path))
+        cli.cmd_new(args)
+        proj = tmp_path / "progetto-è-bello"
+        assert (proj / "AGENTS.md").exists()
+
+    def test_spaces_in_parent_dir(self, tmp_path):
+        parent = tmp_path / "my folder"
+        parent.mkdir()
+        args = make_args(name="proj", dir=str(parent))
+        cli.cmd_new(args)
+        assert (parent / "proj" / "AGENTS.md").exists()
+
+    def test_new_dest_is_file_not_dir(self, tmp_path):
+        (tmp_path / "myproj").write_text("i am a file")
+        args = make_args(name="myproj", dir=str(tmp_path))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(args)
+        assert exc.value.code == 1
+
+    def test_force_overwrite_readonly_file(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        agents = tmp_path / "AGENTS.md"
+        agents.chmod(0o444)
+        try:
+            # shutil.copy2 overwrites read-only files on POSIX
+            copied, _ = cli.copy_template(str(tmp_path), force=True)
+            assert "AGENTS.md" in copied
+        finally:
+            agents.chmod(0o644)  # restore for cleanup
+
+    def test_remove_readonly_file(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        agents = tmp_path / "AGENTS.md"
+        agents.chmod(0o444)
+        try:
+            cli.cmd_remove(make_remove_args())
+            assert not agents.exists()
+        except SystemExit:
+            agents.chmod(0o644)
+            pytest.fail("cmd_remove should handle read-only files")
+
+    def test_archive_twice_no_collision(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_remove(make_remove_args(archive=True))
+        # Re-init and archive again
+        cli.cmd_init(make_init_args())
+        cli.cmd_remove(make_remove_args(archive=True))
+        archives = list((tmp_path / ".agentinit-archive").iterdir())
+        assert len(archives) >= 2
+
+    def test_remove_keyboard_interrupt_aborts(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        import builtins
+        monkeypatch.setattr(builtins, "input", lambda _prompt="": (_ for _ in ()).throw(KeyboardInterrupt))
+        cli.cmd_remove(make_remove_args(force=False))
+        assert "Aborted" in capsys.readouterr().out
+        # Files should still exist (removal was aborted)
+        assert (tmp_path / "AGENTS.md").exists()

@@ -26,3 +26,10 @@
 - Added `agentinit minimal` convenience alias.
 - Filled `docs/PROJECT.md` and `docs/CONVENTIONS.md` with real project details.
 - Released v0.2.3.
+- Fixed EOFError/KeyboardInterrupt handling in wizard (clean exit 130).
+- Fixed `--yes` flag ignored in direct `cmd_new`/`cmd_init` calls.
+- Fixed `--force` failing on read-only files (PermissionError).
+- Fixed archive timestamp collision (added microseconds).
+- Fixed stderr consistency for all warnings.
+- Added edge case tests (unicode, spaces, read-only, archive collision).
+- Released v0.2.4.
