@@ -126,7 +126,7 @@ def write_todo(dest, force=False):
     """
     path = os.path.join(dest, "docs", "TODO.md")
     if os.path.exists(path) and not force:
-        print(f"Warning: {os.path.relpath(path)} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(f"Warning: {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     content = """\
@@ -156,7 +156,7 @@ def write_decisions(dest, force=False):
     """
     path = os.path.join(dest, "docs", "DECISIONS.md")
     if os.path.exists(path) and not force:
-        print(f"Warning: {os.path.relpath(path)} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(f"Warning: {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     today = date.today().isoformat()
