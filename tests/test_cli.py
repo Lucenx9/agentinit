@@ -314,6 +314,48 @@ class TestCmdInit:
 
 
 # ---------------------------------------------------------------------------
+# cmd_minimal (alias for init --minimal)
+# ---------------------------------------------------------------------------
+
+class TestCmdMinimal:
+    def test_creates_only_core_files(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal"])
+        cli.main()
+        files = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file())
+        assert files == [
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/CONVENTIONS.md",
+            "docs/PROJECT.md",
+        ]
+
+    def test_with_purpose(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--purpose", "Quick test"])
+        cli.main()
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "Quick test" in content
+
+    def test_matches_init_minimal(self, tmp_path, monkeypatch):
+        """Ensure `minimal` produces the same files as `init --minimal`."""
+        dir_a = tmp_path / "a"
+        dir_a.mkdir()
+        monkeypatch.chdir(dir_a)
+        cli.cmd_init(make_init_args(minimal=True))
+
+        dir_b = tmp_path / "b"
+        dir_b.mkdir()
+        monkeypatch.chdir(dir_b)
+        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal"])
+        cli.main()
+
+        files_a = sorted(str(p.relative_to(dir_a)) for p in dir_a.rglob("*") if p.is_file())
+        files_b = sorted(str(p.relative_to(dir_b)) for p in dir_b.rglob("*") if p.is_file())
+        assert files_a == files_b
+
+
+# ---------------------------------------------------------------------------
 # cmd_remove
 # ---------------------------------------------------------------------------
 

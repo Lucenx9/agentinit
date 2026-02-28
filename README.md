@@ -68,8 +68,11 @@ is what agentinit fixes.
 ## Quickstart (60 seconds)
 
 ```sh
-# 1. Install
-pipx install git+https://github.com/Lucenx9/agentinit.git@main
+# 1. Install (stable)
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
+
+# Or bleeding edge:
+# pipx install git+https://github.com/Lucenx9/agentinit.git@main
 
 # 2. Scaffold a new project
 agentinit new myproject --yes
@@ -111,14 +114,17 @@ Review the result, fix any TODOs, and commit.
 Requires Python 3.10+.
 
 ```sh
-# With pipx (recommended)
-pipx install git+https://github.com/Lucenx9/agentinit.git@main
+# With pipx (recommended, stable)
+pipx install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
 
 # With pip
-pip install git+https://github.com/Lucenx9/agentinit.git@main
+pip install git+https://github.com/Lucenx9/agentinit.git@v0.2.2
 
 # Or run one-off without installing
-pipx run --spec git+https://github.com/Lucenx9/agentinit.git@main agentinit --help
+pipx run --spec git+https://github.com/Lucenx9/agentinit.git@v0.2.2 agentinit --help
+
+# Bleeding edge (latest on main)
+# pipx install git+https://github.com/Lucenx9/agentinit.git@main
 ```
 
 ## Usage
@@ -156,6 +162,15 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose without prompts
 - `--prompt` — run a short interactive wizard (requires a TTY)
+
+### Quick minimal scaffold (@main / next release)
+
+```sh
+agentinit minimal
+```
+
+Shortcut for `agentinit init --minimal`. Accepts the same flags (`--force`, `--purpose`, `--prompt`).
+Available on `@main`; not yet in the latest stable release.
 
 ### Remove agentinit files
 

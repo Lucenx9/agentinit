@@ -447,6 +447,12 @@ def main():
     p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_init.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
 
+    # agentinit minimal  (shortcut for init --minimal)
+    p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
+    p_minimal.add_argument("--force", action="store_true", help="Overwrite existing agentinit files.")
+    p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
+    p_minimal.add_argument("--prompt", action="store_true", help="Run a short interactive wizard.")
+
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")
     p_remove.add_argument("--dry-run", action="store_true", help="Print actions only, do not change anything.")
@@ -462,6 +468,9 @@ def main():
     if args.command == "new":
         cmd_new(args)
     elif args.command == "init":
+        cmd_init(args)
+    elif args.command == "minimal":
+        args.minimal = True
         cmd_init(args)
     elif args.command == "remove":
         cmd_remove(args)
