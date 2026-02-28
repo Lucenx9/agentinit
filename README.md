@@ -124,7 +124,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
-- `--detect` — auto-detect stack and commands from manifest files (facts-only)
+- `--detect` — auto-detect stack and commands from manifest files (facts-only, deterministic; leaves `TBD` if parsing fails)
 
 ### Add to an existing project
 
@@ -143,7 +143,7 @@ Flags:
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
 - `--prompt` — force the interactive wizard (even if stdin is not a TTY)
-- `--detect` — auto-detect stack and commands from manifest files (facts-only)
+- `--detect` — auto-detect stack and commands from manifest files (facts-only, handles missing/odd values safely)
 
 ### Quick minimal scaffold
 
@@ -159,6 +159,14 @@ Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--for
 
 - **Line budgets:** Warns if context files exceed 200 lines (soft limit) or 300 lines (hard limit).
 - **Link integrity:** Detects broken file references within `AGENTS.md`.
+- **Top offenders:** Summarizes the largest files when issues exist.
+
+```text
+Top offenders:
+  .github/copilot-instructions.md (25 lines)
+  AGENTS.md (17 lines)
+  .gitignore (12 lines)
+```
 
 **Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are strictly 10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
 
