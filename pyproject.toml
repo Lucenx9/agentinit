@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentinit"
-version = "0.2.4"
+version = "0.2.5"
 description = "Scaffold agent context files into a project."
 readme = "README.md"
 license = "MIT"
