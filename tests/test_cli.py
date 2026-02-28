@@ -176,6 +176,39 @@ class TestApplyUpdates:
         assert "requires an interactive terminal" in err
         assert "--purpose" in err
 
+    def test_wizard_injects_safe_defaults_after_heading(self, tmp_path, monkeypatch):
+        """Safe Defaults block should be inserted after # Conventions heading, not prepended."""
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True, purpose="Test project")
+        # Simulate wizard inputs: env, constraints, commands (all empty for this test)
+        inputs = iter(["", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "CONVENTIONS.md").read_text(encoding="utf-8")
+        lines = content.splitlines()
+
+        # Find positions of key headings
+        conventions_idx = None
+        safe_defaults_idx = None
+        style_idx = None
+        for i, line in enumerate(lines):
+            if line == "# Conventions":
+                conventions_idx = i
+            elif line == "## Safe Defaults":
+                safe_defaults_idx = i
+            elif line == "## Style":
+                style_idx = i
+
+        assert conventions_idx is not None, "Should have # Conventions heading"
+        assert safe_defaults_idx is not None, "Should have ## Safe Defaults heading"
+        assert style_idx is not None, "Should have ## Style heading"
+        # Safe Defaults should be AFTER # Conventions and BEFORE ## Style
+        assert conventions_idx < safe_defaults_idx < style_idx, \
+            f"Safe Defaults should be between # Conventions and ## Style, got positions: " \
+            f"Conventions={conventions_idx}, SafeDefaults={safe_defaults_idx}, Style={style_idx}"
+
 
 # ---------------------------------------------------------------------------
 # cmd_new

@@ -467,10 +467,10 @@ def apply_updates(dest, args):
             )
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
-            if "# Conventions Template\n" in conv_content:
+            if "# Conventions\n" in conv_content:
                 conv_content = conv_content.replace(
-                    "# Conventions Template\n",
-                    f"# Conventions Template\n\n{safe_defaults}",
+                    "# Conventions\n",
+                    f"# Conventions\n\n{safe_defaults}",
                     1,
                 )
             else:
