@@ -17,6 +17,7 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templat
 # Respects NO_COLOR (https://no-color.org/), TERM=dumb, and non-TTY streams.
 # ---------------------------------------------------------------------------
 
+
 def _use_color(stream=None):
     """Return True when ANSI color codes should be emitted to *stream*."""
     if os.environ.get("NO_COLOR"):
@@ -45,9 +46,16 @@ def _c(text, code, stream=None):
 def _print_next_steps():
     """Print actionable guidance after a successful init or new."""
     print(f"\n{_c('Next steps:', _CYAN + _BOLD)}")
-    print(f"  {_c('1.', _CYAN)} Open {_c('docs/PROJECT.md', _BOLD)} and describe your project")
-    print(f"  {_c('2.', _CYAN)} Fill in {_c('docs/CONVENTIONS.md', _BOLD)} with your team's standards")
-    print(f"  {_c('3.', _CYAN)} Run your coding agent — it will read AGENTS.md automatically")
+    print(
+        f"  {_c('1.', _CYAN)} Open {_c('docs/PROJECT.md', _BOLD)} and describe your project"
+    )
+    print(
+        f"  {_c('2.', _CYAN)} Fill in {_c('docs/CONVENTIONS.md', _BOLD)} with your team's standards"
+    )
+    print(
+        f"  {_c('3.', _CYAN)} Run your coding agent — it will read AGENTS.md automatically"
+    )
+
 
 # Files managed by agentinit (relative to project root).
 # Used by --force to decide what can be overwritten.
@@ -121,28 +129,60 @@ def copy_template(dest, force=False, minimal=False):
         if not os.path.exists(src):
             continue
         if not _resolves_within(dest_real, os.path.dirname(dst)):
-            print(_c(f"Warning: destination parent resolves outside project, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
+            print(
+                _c(
+                    f"Warning: destination parent resolves outside project, skipping: {rel}",
+                    _YELLOW,
+                    sys.stderr,
+                ),
+                file=sys.stderr,
+            )
             skipped.append(rel)
             continue
         if os.path.lexists(dst):
             if os.path.islink(dst):
-                print(_c(f"Warning: destination is a symlink, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
+                print(
+                    _c(
+                        f"Warning: destination is a symlink, skipping: {rel}",
+                        _YELLOW,
+                        sys.stderr,
+                    ),
+                    file=sys.stderr,
+                )
                 skipped.append(rel)
                 continue
             if os.path.isdir(dst):
-                print(_c(f"Warning: destination is a directory, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
+                print(
+                    _c(
+                        f"Warning: destination is a directory, skipping: {rel}",
+                        _YELLOW,
+                        sys.stderr,
+                    ),
+                    file=sys.stderr,
+                )
                 skipped.append(rel)
                 continue
             if rel == ".gitignore":
                 skipped.append(rel)
                 if force:
-                    print(_c("Note:", _YELLOW, sys.stderr) + " .gitignore already exists, leaving it untouched.", file=sys.stderr)
+                    print(
+                        _c("Note:", _YELLOW, sys.stderr)
+                        + " .gitignore already exists, leaving it untouched.",
+                        file=sys.stderr,
+                    )
                 continue
             if not force:
                 skipped.append(rel)
                 continue
         if not _resolves_within(dest_real, dst):
-            print(_c(f"Warning: destination resolves outside project, skipping: {rel}", _YELLOW, sys.stderr), file=sys.stderr)
+            print(
+                _c(
+                    f"Warning: destination resolves outside project, skipping: {rel}",
+                    _YELLOW,
+                    sys.stderr,
+                ),
+                file=sys.stderr,
+            )
             skipped.append(rel)
             continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -153,7 +193,11 @@ def copy_template(dest, force=False, minimal=False):
                 os.chmod(dst, 0o644)
                 shutil.copy2(src, dst)
             else:
-                print(_c("Warning:", _YELLOW, sys.stderr) + f" permission denied, skipping: {rel}", file=sys.stderr)
+                print(
+                    _c("Warning:", _YELLOW, sys.stderr)
+                    + f" permission denied, skipping: {rel}",
+                    file=sys.stderr,
+                )
                 skipped.append(rel)
                 continue
         copied.append(rel)
@@ -163,19 +207,19 @@ def copy_template(dest, force=False, minimal=False):
 def _run_detect(dest, project_path, content):
     """Detect stack and commands from manifests and return updated content."""
     import json
-    
+
     stack_updates = {}
     cmd_updates = {}
-    
+
     # 1. Node: package.json
     pkg_json_path = os.path.join(dest, "package.json")
     if os.path.isfile(pkg_json_path):
         try:
             with open(pkg_json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             stack_updates["- **Runtime:** TBD"] = "- **Runtime:** Node.js"
-            
+
             pm = str(data.get("packageManager") or "")
             manager = "npm"
             if "pnpm" in pm:
@@ -193,17 +237,19 @@ def _run_detect(dest, project_path, content):
                     manager = "bun"
                 else:
                     manager = "npm"
-            
+
             scripts = data.get("scripts")
             if not isinstance(scripts, dict):
                 scripts = {}
-            run_prefix = f"{manager} run " if manager not in ("yarn", "bun") else f"{manager} "
-            
+            run_prefix = (
+                f"{manager} run " if manager not in ("yarn", "bun") else f"{manager} "
+            )
+
             if "setup" in scripts:
                 cmd_updates["- Setup: TBD"] = f"- Setup: {run_prefix}setup"
             else:
                 cmd_updates["- Setup: TBD"] = f"- Setup: {manager} install"
-                
+
             if "build" in scripts:
                 cmd_updates["- Build: TBD"] = f"- Build: {run_prefix}build"
             if "test" in scripts:
@@ -230,11 +276,11 @@ def _run_detect(dest, project_path, content):
                     if line.startswith("go "):
                         go_version = line.split(" ")[1]
                         break
-            
+
             stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Go"
             if go_version:
                 stack_updates["- **Runtime:** TBD"] = f"- **Runtime:** Go {go_version}"
-            
+
             cmd_updates["- Setup: TBD"] = "- Setup: go mod download"
             cmd_updates["- Build: TBD"] = "- Build: go build ./..."
             cmd_updates["- Test: TBD"] = "- Test: go test ./..."
@@ -255,22 +301,24 @@ def _run_detect(dest, project_path, content):
             try:
                 with open(cargo_path, "rb") as f:
                     cargo_data = tomllib.load(f)
-                
+
                 pkg = cargo_data.get("package")
                 if not isinstance(pkg, dict):
                     pkg = {}
                 name = pkg.get("name", "")
                 edition = pkg.get("edition", "")
-                
+
                 lang_str = "- **Language(s):** Rust"
                 if edition:
                     lang_str += f" ({edition})"
                 stack_updates["- **Language(s):** TBD"] = lang_str
-                
+
                 cmd_updates["- Setup: TBD"] = "- Setup: cargo fetch"
                 cmd_updates["- Build: TBD"] = "- Build: cargo build"
                 cmd_updates["- Test: TBD"] = "- Test: cargo test"
-                cmd_updates["- Lint/Format: TBD"] = "- Lint/Format: cargo fmt && cargo clippy"
+                cmd_updates["- Lint/Format: TBD"] = (
+                    "- Lint/Format: cargo fmt && cargo clippy"
+                )
                 cmd_updates["- Run: TBD"] = "- Run: cargo run"
             except Exception:
                 pass
@@ -281,7 +329,7 @@ def _run_detect(dest, project_path, content):
             try:
                 with open(pyproject_path, "rb") as f:
                     py_data = tomllib.load(f)
-                
+
                 manager = "pip"
                 tool = py_data.get("tool")
                 if isinstance(tool, dict):
@@ -291,16 +339,18 @@ def _run_detect(dest, project_path, content):
                         manager = "uv"
                     elif "pdm" in tool:
                         manager = "pdm"
-                
+
                 project = py_data.get("project")
                 if not isinstance(project, dict):
                     project = {}
                 requires_python = project.get("requires-python", "")
-                
+
                 stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Python"
                 if requires_python:
-                    stack_updates["- **Runtime:** TBD"] = f"- **Runtime:** Python {requires_python}"
-                
+                    stack_updates["- **Runtime:** TBD"] = (
+                        f"- **Runtime:** Python {requires_python}"
+                    )
+
                 if manager == "poetry":
                     cmd_updates["- Setup: TBD"] = "- Setup: poetry install"
                     cmd_updates["- Run: TBD"] = "- Run: poetry run python"
@@ -319,7 +369,7 @@ def _run_detect(dest, project_path, content):
         content = content.replace(k, v)
     for k, v in cmd_updates.items():
         content = content.replace(k, v)
-        
+
     return content
 
 
@@ -328,7 +378,11 @@ def apply_updates(dest, args):
     wizard_run = args.prompt
     if wizard_run:
         if not sys.stdin.isatty():
-            print(_c("Error:", _RED, sys.stderr) + " --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.", file=sys.stderr)
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + " --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         try:
             purpose = args.purpose
@@ -336,7 +390,9 @@ def apply_updates(dest, args):
                 purpose = input("Purpose: ").strip()
             env = input("Environment (OS/device) [optional]: ").strip()
             constraints = input("Constraints [optional]: ").strip()
-            commands = input("Commands I can run (comma-separated) [optional]: ").strip()
+            commands = input(
+                "Commands I can run (comma-separated) [optional]: "
+            ).strip()
         except (EOFError, KeyboardInterrupt):
             print("\nAborted.")
             sys.exit(130)
@@ -348,7 +404,11 @@ def apply_updates(dest, args):
 
     project_path = os.path.join(dest, "docs", "PROJECT.md")
     if not os.path.isfile(project_path):
-        print(_c("Warning:", _YELLOW, sys.stderr) + " docs/PROJECT.md is not a regular file; skipping purpose update.", file=sys.stderr)
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + " docs/PROJECT.md is not a regular file; skipping purpose update.",
+            file=sys.stderr,
+        )
     else:
         with open(project_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -366,10 +426,12 @@ def apply_updates(dest, args):
             if env:
                 content = content.replace(
                     "## Stack (TBD)",
-                    f"## Environment\n\n- OS/device: {env}\n\n## Stack (TBD)"
+                    f"## Environment\n\n- OS/device: {env}\n\n## Stack (TBD)",
                 )
             if commands:
-                cmds_list = "\n".join(f"- {c.strip()}" for c in commands.split(",") if c.strip())
+                cmds_list = "\n".join(
+                    f"- {c.strip()}" for c in commands.split(",") if c.strip()
+                )
                 old_commands = (
                     "## Commands (TBD)\n\n"
                     "- Setup: TBD\n"
@@ -406,7 +468,11 @@ def apply_updates(dest, args):
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
             if "# Conventions Template\n" in conv_content:
-                conv_content = conv_content.replace("# Conventions Template\n", f"# Conventions Template\n\n{safe_defaults}", 1)
+                conv_content = conv_content.replace(
+                    "# Conventions Template\n",
+                    f"# Conventions Template\n\n{safe_defaults}",
+                    1,
+                )
             else:
                 conv_content = safe_defaults + conv_content
             with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
@@ -420,7 +486,11 @@ def write_todo(dest, force=False):
     """
     path = os.path.join(dest, "docs", "TODO.md")
     if os.path.exists(path) and not force:
-        print(_c("Warning:", _YELLOW, sys.stderr) + f" {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + f" {path} already exists, skipping (use --force to overwrite).",
+            file=sys.stderr,
+        )
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     content = """\
@@ -450,7 +520,11 @@ def write_decisions(dest, force=False):
     """
     path = os.path.join(dest, "docs", "DECISIONS.md")
     if os.path.exists(path) and not force:
-        print(_c("Warning:", _YELLOW, sys.stderr) + f" {path} already exists, skipping (use --force to overwrite).", file=sys.stderr)
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + f" {path} already exists, skipping (use --force to overwrite).",
+            file=sys.stderr,
+        )
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     today = date.today().isoformat()
@@ -484,7 +558,10 @@ def cmd_new(args):
     # Reject names whose final component is '.' or '..' to prevent traversal.
     basename = os.path.basename(os.path.normpath(args.name))
     if not basename or basename in (".", ".."):
-        print(_c("Error:", _RED, sys.stderr) + f" invalid project name: {args.name!r}", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr) + f" invalid project name: {args.name!r}",
+            file=sys.stderr,
+        )
         print("The project name must not resolve to '.' or '..'.", file=sys.stderr)
         sys.exit(1)
 
@@ -496,20 +573,31 @@ def cmd_new(args):
     dest = os.path.abspath(dest)
 
     if os.path.exists(dest) and not args.force:
-        print(_c("Error:", _RED, sys.stderr) + f" directory already exists: {dest}", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr) + f" directory already exists: {dest}",
+            file=sys.stderr,
+        )
         print("Use --force to overwrite agentinit files.", file=sys.stderr)
         sys.exit(1)
 
     # Validate template before creating anything.
     if not os.path.isdir(TEMPLATE_DIR):
-        print(_c("Error:", _RED, sys.stderr) + " template directory not found. Installation may be corrupt.", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + " template directory not found. Installation may be corrupt.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Create dir and copy template
     os.makedirs(dest, exist_ok=True)
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
     if not copied and not skipped:
-        print(_c("Error:", _RED, sys.stderr) + " no template files copied. Installation may be corrupt.", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + " no template files copied. Installation may be corrupt.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Customize generated files
@@ -534,13 +622,21 @@ def cmd_init(args):
     dest = os.path.abspath(".")
 
     if not os.path.isdir(TEMPLATE_DIR):
-        print(_c("Error:", _RED, sys.stderr) + " template directory not found. Installation may be corrupt.", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + " template directory not found. Installation may be corrupt.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
 
     if not copied and not skipped:
-        print(_c("Error:", _RED, sys.stderr) + " no template files copied. Installation may be corrupt.", file=sys.stderr)
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + " no template files copied. Installation may be corrupt.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     apply_updates(dest, args)
@@ -604,10 +700,18 @@ def cmd_remove(args):
     if not args.force:
         actionable = sum(1 for _, is_dir in found if not is_dir)
         if not sys.stdin.isatty():
-            print(_c("Error:", _RED, sys.stderr) + " confirmation requires a terminal. Use --force to skip.", file=sys.stderr)
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + " confirmation requires a terminal. Use --force to skip.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         try:
-            answer = input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ").strip().lower()
+            answer = (
+                input(f"\n{action.capitalize()} {actionable} file(s)? (y/N) ")
+                .strip()
+                .lower()
+            )
         except (EOFError, KeyboardInterrupt):
             print("\nAborted.")
             return
@@ -622,7 +726,11 @@ def cmd_remove(args):
         archived = 0
         for rel, is_dir in found:
             if is_dir:
-                print(_c("Warning:", _YELLOW, sys.stderr) + f" managed path is a directory, skipping archive: {rel}", file=sys.stderr)
+                print(
+                    _c("Warning:", _YELLOW, sys.stderr)
+                    + f" managed path is a directory, skipping archive: {rel}",
+                    file=sys.stderr,
+                )
                 continue
             src = os.path.join(dest, rel)
             dst = os.path.join(archive_dir, rel)
@@ -631,20 +739,30 @@ def cmd_remove(args):
                 shutil.move(src, dst)
                 archived += 1
             except OSError as e:
-                print(_c("Error:", _RED, sys.stderr) + f" failed to archive {rel}: {e}", file=sys.stderr)
+                print(
+                    _c("Error:", _RED, sys.stderr) + f" failed to archive {rel}: {e}",
+                    file=sys.stderr,
+                )
                 continue
         print(f"Archived {archived} file(s) to .agentinit-archive/{ts}/")
     else:
         removed = 0
         for rel, is_dir in found:
             if is_dir:
-                print(_c("Warning:", _YELLOW, sys.stderr) + f" managed path is a directory, skipping remove: {rel}", file=sys.stderr)
+                print(
+                    _c("Warning:", _YELLOW, sys.stderr)
+                    + f" managed path is a directory, skipping remove: {rel}",
+                    file=sys.stderr,
+                )
                 continue
             try:
                 os.remove(os.path.join(dest, rel))
                 removed += 1
             except OSError as e:
-                print(_c("Error:", _RED, sys.stderr) + f" failed to remove {rel}: {e}", file=sys.stderr)
+                print(
+                    _c("Error:", _RED, sys.stderr) + f" failed to remove {rel}: {e}",
+                    file=sys.stderr,
+                )
                 continue
         print(f"Removed {removed} file(s).")
 
@@ -665,7 +783,9 @@ def cmd_status(args):
     hard_violations = []
     broken_refs = []
     file_sizes = []
-    files_to_check = MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
+    files_to_check = (
+        MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
+    )
 
     print(f"{_c('Agent Context Status', _BOLD)}")
     print(f"Directory: {dest}\n")
@@ -685,83 +805,106 @@ def cmd_status(args):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     content = f.read()
-                
+
                 lines = content.splitlines()
                 line_count = len(lines)
                 file_sizes.append((rel, line_count))
                 is_always_loaded = not rel.startswith("docs/") and rel != ".gitignore"
-                
-                status_symbol = _c('+', _GREEN)
+
+                status_symbol = _c("+", _GREEN)
                 msgs = []
                 hints = []
-                
+
                 if "TBD" in content:
                     tbd.append(rel)
-                    status_symbol = _c('!', _YELLOW)
-                    msgs.append(_c('(contains TBD, needs update)', _YELLOW))
-                
+                    status_symbol = _c("!", _YELLOW)
+                    msgs.append(_c("(contains TBD, needs update)", _YELLOW))
+
                 if line_count >= 300 and is_always_loaded:
                     hard_violations.append(rel)
-                    status_symbol = _c('x', _RED)
-                    msgs.append(_c(f'({line_count} lines >= 300)', _RED))
+                    status_symbol = _c("x", _RED)
+                    msgs.append(_c(f"({line_count} lines >= 300)", _RED))
                     if "CLAUDE.md" in rel or "GEMINI.md" in rel:
-                        hints.append(f"Move details to docs/ and keep {os.path.basename(rel)} as a router (10–20 lines).")
+                        hints.append(
+                            f"Move details to docs/ and keep {os.path.basename(rel)} as a router (10–20 lines)."
+                        )
                     elif "AGENTS.md" in rel:
                         hints.append("Split AGENTS.md into topic docs and link them.")
                     else:
                         hints.append(f"Reduce size of {rel} to keep context lean.")
                 elif line_count >= 200:
-                    status_symbol = _c('!', _YELLOW) if status_symbol != _c('x', _RED) else status_symbol
-                    msgs.append(_c(f'({line_count} lines >= 200)', _YELLOW))
+                    status_symbol = (
+                        _c("!", _YELLOW)
+                        if status_symbol != _c("x", _RED)
+                        else status_symbol
+                    )
+                    msgs.append(_c(f"({line_count} lines >= 200)", _YELLOW))
                     if is_always_loaded:
-                        hints.append(f"Consider moving details from {os.path.basename(rel)} to docs/.")
+                        hints.append(
+                            f"Consider moving details from {os.path.basename(rel)} to docs/."
+                        )
                     else:
-                        hints.append("Consider splitting this document if it grows further.")
-                
+                        hints.append(
+                            "Consider splitting this document if it grows further."
+                        )
+
                 msg_str = " ".join(msgs)
                 print(f"  {status_symbol} {rel} {msg_str}".rstrip())
                 for hint in hints:
                     print(f"      {_c('Hint:', _CYAN)} {hint}")
-                
+
                 if rel == "AGENTS.md":
                     # Check broken references
-                    md_links = re.findall(r'\[.*?\]\(([^)]+)\)', content)
-                    code_links = re.findall(r'`([^`\n]+)`', content)
-                    
+                    md_links = re.findall(r"\[.*?\]\(([^)]+)\)", content)
+                    code_links = re.findall(r"`([^`\n]+)`", content)
+
                     potential_paths = set(md_links + code_links)
                     for line in lines:
                         line = line.strip()
-                        if line and ' ' not in line and ('/' in line or '\\' in line) and not line.startswith('#'):
+                        if (
+                            line
+                            and " " not in line
+                            and ("/" in line or "\\" in line)
+                            and not line.startswith("#")
+                        ):
                             potential_paths.add(line)
-                            
+
                     seen_broken = set()
                     dest_real = os.path.realpath(dest)
                     for p in potential_paths:
-                        p = p.split('#', 1)[0]
-                        p = p.split('?', 1)[0]
+                        p = p.split("#", 1)[0]
+                        p = p.split("?", 1)[0]
                         p = p.strip()
-                        if ' ' in p:
+                        if " " in p:
                             p = p.split()[0]
-                            
+
                         if not p:
                             continue
-                        if p.startswith(('http://', 'https://', 'mailto:', '/')):
+                        if p.startswith(("http://", "https://", "mailto:", "/")):
                             continue
-                        if not ('/' in p or '\\' in p or p.endswith(('.md', '.mdc', '.txt', '.py', '.yml', '.yaml'))):
+                        if not (
+                            "/" in p
+                            or "\\" in p
+                            or p.endswith(
+                                (".md", ".mdc", ".txt", ".py", ".yml", ".yaml")
+                            )
+                        ):
                             continue
-                            
+
                         target_path = os.path.join(dest_real, p)
                         if not _resolves_within(dest_real, target_path):
                             continue
-                            
+
                         target_real = os.path.realpath(target_path)
                         if not os.path.exists(target_real):
                             if p not in seen_broken:
                                 seen_broken.add(p)
                                 broken_refs.append(p)
                                 print(f"      {_c('x', _RED)} Broken reference: {p}")
-                                print(f"      {_c('Hint:', _CYAN)} Fix broken link: create {p} or remove the reference.")
-                            
+                                print(
+                                    f"      {_c('Hint:', _CYAN)} Fix broken link: create {p} or remove the reference."
+                                )
+
             except (OSError, UnicodeDecodeError):
                 missing.append(rel)
                 print(f"  {_c('x', _RED)} {rel} {_c('(unreadable)', _RED)}")
@@ -780,8 +923,9 @@ def cmd_status(args):
 
         print(f"{_c('Top offenders:', _YELLOW)}")
         if file_sizes:
-            file_sizes.sort(key=lambda x: x[1], reverse=True)
-            for f_rel, f_lines in file_sizes[:3]:
+            filtered = [(f, n) for f, n in file_sizes if f != ".gitignore"]
+            filtered.sort(key=lambda x: x[1], reverse=True)
+            for f_rel, f_lines in filtered[:3]:
                 print(f"  {f_rel} ({f_lines} lines)")
         if broken_refs:
             print(f"  AGENTS.md: {len(broken_refs)} broken references")
@@ -791,7 +935,9 @@ def cmd_status(args):
         if args.check:
             sys.exit(1)
     else:
-        print(f"Result: {_c('Ready', _GREEN)} (All files present, filled, and within budgets)")
+        print(
+            f"Result: {_c('Ready', _GREEN)} (All files present, filled, and within budgets)"
+        )
         if args.check:
             sys.exit(0)
 
@@ -811,49 +957,106 @@ def main():
     # agentinit new <name>
     p_new = sub.add_parser("new", help="Create a new project with agent context files.")
     p_new.add_argument("name", help="Project directory name.")
-    p_new.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
+    p_new.add_argument(
+        "--yes", "-y", action="store_true", help="Skip interactive wizard."
+    )
     p_new.add_argument("--dir", help="Parent directory (default: current directory).")
-    p_new.add_argument("--force", action="store_true", help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.")
+    p_new.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.",
+    )
     p_new.add_argument(
         "--minimal",
         action="store_true",
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_new.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
-    p_new.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
+    p_new.add_argument(
+        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
+    )
+    p_new.add_argument(
+        "--detect",
+        action="store_true",
+        help="Auto-detect stack and commands from manifest files.",
+    )
 
     # agentinit init
-    p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
-    p_init.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
-    p_init.add_argument("--force", action="store_true", help="Overwrite existing agentinit files (including TODO/DECISIONS).")
+    p_init = sub.add_parser(
+        "init", help="Add missing agent context files to the current directory."
+    )
+    p_init.add_argument(
+        "--yes", "-y", action="store_true", help="Skip interactive wizard."
+    )
+    p_init.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing agentinit files (including TODO/DECISIONS).",
+    )
     p_init.add_argument(
         "--minimal",
         action="store_true",
         help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_init.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
-    p_init.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
+    p_init.add_argument(
+        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
+    )
+    p_init.add_argument(
+        "--detect",
+        action="store_true",
+        help="Auto-detect stack and commands from manifest files.",
+    )
 
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
-    p_minimal.add_argument("--yes", "-y", action="store_true", help="Skip interactive wizard.")
-    p_minimal.add_argument("--force", action="store_true", help="Overwrite existing agentinit files.")
+    p_minimal.add_argument(
+        "--yes", "-y", action="store_true", help="Skip interactive wizard."
+    )
+    p_minimal.add_argument(
+        "--force", action="store_true", help="Overwrite existing agentinit files."
+    )
     p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_minimal.add_argument("--prompt", action="store_true", help="Run interactive wizard (default on TTY).")
-    p_minimal.add_argument("--detect", action="store_true", help="Auto-detect stack and commands from manifest files.")
+    p_minimal.add_argument(
+        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
+    )
+    p_minimal.add_argument(
+        "--detect",
+        action="store_true",
+        help="Auto-detect stack and commands from manifest files.",
+    )
 
     # agentinit remove
-    p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")
-    p_remove.add_argument("--dry-run", action="store_true", help="Print actions only, do not change anything.")
-    p_remove.add_argument("--archive", action="store_true", help="Move files to .agentinit-archive/ instead of deleting.")
-    p_remove.add_argument("--force", action="store_true", help="Skip confirmation prompt.")
+    p_remove = sub.add_parser(
+        "remove", help="Remove agentinit-managed files from the current directory."
+    )
+    p_remove.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print actions only, do not change anything.",
+    )
+    p_remove.add_argument(
+        "--archive",
+        action="store_true",
+        help="Move files to .agentinit-archive/ instead of deleting.",
+    )
+    p_remove.add_argument(
+        "--force", action="store_true", help="Skip confirmation prompt."
+    )
 
     # agentinit status
-    p_status = sub.add_parser("status", help="Show which agent context files are present, missing, or need updates.")
-    p_status.add_argument("--check", action="store_true", help="Exit with code 1 if files are missing or incomplete. Useful for CI.")
-    p_status.add_argument("--minimal", action="store_true", help="Check only the minimal core files.")
+    p_status = sub.add_parser(
+        "status",
+        help="Show which agent context files are present, missing, or need updates.",
+    )
+    p_status.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit with code 1 if files are missing or incomplete. Useful for CI.",
+    )
+    p_status.add_argument(
+        "--minimal", action="store_true", help="Check only the minimal core files."
+    )
 
     args = parser.parse_args()
 

@@ -165,7 +165,7 @@ Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--for
 Top offenders:
   .github/copilot-instructions.md (25 lines)
   AGENTS.md (17 lines)
-  .gitignore (12 lines)
+  CLAUDE.md (12 lines)
 ```
 
 **Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are strictly 10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.

@@ -13,6 +13,7 @@ import agentinit.cli as cli
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_args(**kwargs):
     """Build an argparse.Namespace with sensible defaults for cmd_new."""
     defaults = {
@@ -29,10 +30,7 @@ def make_args(**kwargs):
 
 
 def make_init_args(**kwargs):
-    defaults = {"force": False, "minimal": False,
-        "purpose": None,
-        "prompt": False
-    }
+    defaults = {"force": False, "minimal": False, "purpose": None, "prompt": False}
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
@@ -46,6 +44,7 @@ def make_remove_args(**kwargs):
 # ---------------------------------------------------------------------------
 # copy_template
 # ---------------------------------------------------------------------------
+
 
 class TestCopyTemplate:
     def test_copies_managed_files(self, tmp_path):
@@ -93,6 +92,7 @@ class TestCopyTemplate:
 # ---------------------------------------------------------------------------
 # write_todo / write_decisions
 # ---------------------------------------------------------------------------
+
 
 class TestWriteTodo:
     def test_creates_file(self, tmp_path):
@@ -150,6 +150,7 @@ class TestWriteDecisions:
 # apply_updates
 # ---------------------------------------------------------------------------
 
+
 class TestApplyUpdates:
     def test_replaces_placeholder(self, tmp_path):
         cli.copy_template(str(tmp_path))
@@ -179,6 +180,7 @@ class TestApplyUpdates:
 # ---------------------------------------------------------------------------
 # cmd_new
 # ---------------------------------------------------------------------------
+
 
 class TestCmdNew:
     def test_creates_project(self, tmp_path):
@@ -255,7 +257,13 @@ class TestCmdNew:
         assert "TBD" in content
 
     def test_minimal_with_purpose(self, tmp_path):
-        args = make_args(name="myproj", dir=str(tmp_path), minimal=True, yes=True, purpose="Custom Purpose")
+        args = make_args(
+            name="myproj",
+            dir=str(tmp_path),
+            minimal=True,
+            yes=True,
+            purpose="Custom Purpose",
+        )
         cli.cmd_new(args)
         proj = tmp_path / "myproj"
         content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
@@ -265,9 +273,19 @@ class TestCmdNew:
     def test_yes_overrides_prompt(self, tmp_path, monkeypatch):
         """--yes disables --prompt so no interactive wizard runs."""
         monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
-        monkeypatch.setattr(sys, "argv", [
-            "agentinit", "new", "proj", "--yes", "--prompt", "--dir", str(tmp_path),
-        ])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "agentinit",
+                "new",
+                "proj",
+                "--yes",
+                "--prompt",
+                "--dir",
+                str(tmp_path),
+            ],
+        )
         cli.main()
         # Should succeed without prompting (--yes wins over --prompt)
         assert (tmp_path / "proj" / "AGENTS.md").exists()
@@ -276,6 +294,7 @@ class TestCmdNew:
 # ---------------------------------------------------------------------------
 # cmd_init
 # ---------------------------------------------------------------------------
+
 
 class TestCmdInit:
     def test_copies_files_to_cwd(self, tmp_path, monkeypatch):
@@ -293,7 +312,9 @@ class TestCmdInit:
     def test_minimal_creates_only_core_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
-        files = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file())
+        files = sorted(
+            str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file()
+        )
         assert files == [
             "AGENTS.md",
             "CLAUDE.md",
@@ -308,7 +329,9 @@ class TestCmdInit:
         assert "Init Purpose" in content
         assert "Describe what this project is for" not in content
 
-    def test_minimal_does_not_overwrite_project_or_conventions_without_force(self, tmp_path, monkeypatch):
+    def test_minimal_does_not_overwrite_project_or_conventions_without_force(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         docs = tmp_path / "docs"
         docs.mkdir()
@@ -360,7 +383,10 @@ class TestCmdInit:
         cli.copy_template(str(tmp_path))
         monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
         import builtins
-        monkeypatch.setattr(builtins, "input", lambda _prompt="": (_ for _ in ()).throw(EOFError))
+
+        monkeypatch.setattr(
+            builtins, "input", lambda _prompt="": (_ for _ in ()).throw(EOFError)
+        )
         with pytest.raises(SystemExit) as exc:
             cli.cmd_init(make_init_args(prompt=True))
         assert exc.value.code == 130
@@ -379,12 +405,15 @@ class TestCmdInit:
 # cmd_minimal (alias for init --minimal)
 # ---------------------------------------------------------------------------
 
+
 class TestCmdMinimal:
     def test_creates_only_core_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes"])
         cli.main()
-        files = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file())
+        files = sorted(
+            str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file()
+        )
         assert files == [
             "AGENTS.md",
             "CLAUDE.md",
@@ -394,7 +423,9 @@ class TestCmdMinimal:
 
     def test_with_purpose(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes", "--purpose", "Quick test"])
+        monkeypatch.setattr(
+            sys, "argv", ["agentinit", "minimal", "--yes", "--purpose", "Quick test"]
+        )
         cli.main()
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "Quick test" in content
@@ -412,14 +443,19 @@ class TestCmdMinimal:
         monkeypatch.setattr(sys, "argv", ["agentinit", "minimal", "--yes"])
         cli.main()
 
-        files_a = sorted(str(p.relative_to(dir_a)) for p in dir_a.rglob("*") if p.is_file())
-        files_b = sorted(str(p.relative_to(dir_b)) for p in dir_b.rglob("*") if p.is_file())
+        files_a = sorted(
+            str(p.relative_to(dir_a)) for p in dir_a.rglob("*") if p.is_file()
+        )
+        files_b = sorted(
+            str(p.relative_to(dir_b)) for p in dir_b.rglob("*") if p.is_file()
+        )
         assert files_a == files_b
 
 
 # ---------------------------------------------------------------------------
 # cmd_remove
 # ---------------------------------------------------------------------------
+
 
 class TestCmdRemove:
     def test_removes_files(self, tmp_path, monkeypatch):
@@ -470,6 +506,7 @@ class TestCmdRemove:
 # main (argument parsing smoke tests)
 # ---------------------------------------------------------------------------
 
+
 class TestMain:
     def test_no_args_prints_help(self, monkeypatch, capsys):
         monkeypatch.setattr(sys, "argv", ["agentinit"])
@@ -484,6 +521,7 @@ class TestMain:
 
     def test_version_flag(self, monkeypatch, capsys):
         import re
+
         monkeypatch.setattr(sys, "argv", ["agentinit", "--version"])
         with pytest.raises(SystemExit) as exc:
             cli.main()
@@ -495,6 +533,7 @@ class TestMain:
 # ---------------------------------------------------------------------------
 # _resolves_within
 # ---------------------------------------------------------------------------
+
 
 class TestResolvesWithin:
     def test_inside(self, tmp_path):
@@ -512,6 +551,7 @@ class TestResolvesWithin:
 # ---------------------------------------------------------------------------
 # Edge cases: paths, permissions, remove
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_spaces_in_project_name(self, tmp_path):
@@ -579,7 +619,12 @@ class TestEdgeCases:
         cli.cmd_init(make_init_args())
         monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
         import builtins
-        monkeypatch.setattr(builtins, "input", lambda _prompt="": (_ for _ in ()).throw(KeyboardInterrupt))
+
+        monkeypatch.setattr(
+            builtins,
+            "input",
+            lambda _prompt="": (_ for _ in ()).throw(KeyboardInterrupt),
+        )
         cli.cmd_remove(make_remove_args(force=False))
         assert "Aborted" in capsys.readouterr().out
         # Files should still exist (removal was aborted)
@@ -589,6 +634,7 @@ class TestEdgeCases:
 # ---------------------------------------------------------------------------
 # cmd_status
 # ---------------------------------------------------------------------------
+
 
 def make_status_args(**kwargs):
     defaults = {"check": False, "minimal": False}
@@ -708,7 +754,7 @@ class TestCmdStatus:
         self._fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text("line\n" * 201, encoding="utf-8")
-        
+
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 0
@@ -721,7 +767,7 @@ class TestCmdStatus:
         self._fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text("line\n" * 301, encoding="utf-8")
-        
+
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 1
@@ -734,8 +780,11 @@ class TestCmdStatus:
         cli.cmd_init(make_init_args())
         self._fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
-        agents.write_text("Here is a [link](docs/missing.md \"Title\") and `docs/also-missing.md`", encoding="utf-8")
-        
+        agents.write_text(
+            'Here is a [link](docs/missing.md "Title") and `docs/also-missing.md`',
+            encoding="utf-8",
+        )
+
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 1
@@ -743,13 +792,46 @@ class TestCmdStatus:
         assert "Broken reference: docs/missing.md" in out
         assert "Broken reference: docs/also-missing.md" in out
 
+    def test_gitignore_excluded_from_top_offenders(self, tmp_path, monkeypatch, capsys):
+        """Ensure .gitignore is not listed in Top offenders even when it has many lines."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+
+        (tmp_path / ".gitignore").write_text(
+            "\n".join(f"line{i}" for i in range(50)), encoding="utf-8"
+        )
+        (tmp_path / "AGENTS.md").write_text(
+            "\n".join(f"line{i}" for i in range(30)), encoding="utf-8"
+        )
+        (tmp_path / "CLAUDE.md").write_text(
+            "\n".join(f"line{i}" for i in range(20)), encoding="utf-8"
+        )
+
+        cli.cmd_status(make_status_args())
+        out = capsys.readouterr().out
+
+        assert ".gitignore" not in out or "Top offenders:" not in out
+        lines = out.split("\n")
+        top_offenders_section = False
+        for line in lines:
+            if "Top offenders:" in line:
+                top_offenders_section = True
+            elif top_offenders_section and ".gitignore" in line:
+                pytest.fail(".gitignore should not appear in Top offenders")
+            elif top_offenders_section and line.strip() and not line.startswith("  "):
+                break
+
     def test_valid_reference(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
         self._fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
-        agents.write_text("Valid link: [project](docs/PROJECT.md) and [x](../secret.md)", encoding="utf-8")
-        
+        agents.write_text(
+            "Valid link: [project](docs/PROJECT.md) and [x](../secret.md)",
+            encoding="utf-8",
+        )
+
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 0
@@ -763,7 +845,7 @@ class TestCmdStatus:
         agents = tmp_path / "AGENTS.md"
         # Test paths that resolve outside the root (should be ignored, not crash)
         agents.write_text("See `../secret.md` or `../../outside.txt`", encoding="utf-8")
-        
+
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 0
@@ -775,16 +857,17 @@ class TestDetectManifests:
     def test_detect_node(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        
+
         # Write fake package.json
         import json
+
         pkg = {"packageManager": "pnpm@8", "scripts": {"test": "jest", "dev": "vite"}}
         (tmp_path / "package.json").write_text(json.dumps(pkg), encoding="utf-8")
-        
+
         # Call with detect
         args = make_init_args(detect=True)
         cli.apply_updates(str(tmp_path), args)
-        
+
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "Node.js" in content
         assert "- Test: pnpm run test" in content
@@ -793,12 +876,14 @@ class TestDetectManifests:
     def test_detect_go(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        
-        (tmp_path / "go.mod").write_text("module myapp\n\ngo 1.22.1\n", encoding="utf-8")
-        
+
+        (tmp_path / "go.mod").write_text(
+            "module myapp\n\ngo 1.22.1\n", encoding="utf-8"
+        )
+
         args = make_init_args(detect=True)
         cli.apply_updates(str(tmp_path), args)
-        
+
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "- **Language(s):** Go" in content
         assert "- **Runtime:** Go 1.22.1" in content
@@ -807,22 +892,24 @@ class TestDetectManifests:
     def test_detect_python_poetry(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        
-        toml = '[project]\nrequires-python = ">=3.11"\n\n[tool.poetry]\nname = "myproj"\n'
+
+        toml = (
+            '[project]\nrequires-python = ">=3.11"\n\n[tool.poetry]\nname = "myproj"\n'
+        )
         (tmp_path / "pyproject.toml").write_text(toml, encoding="utf-8")
-        
+
         args = make_init_args(detect=True)
         cli.apply_updates(str(tmp_path), args)
-        
+
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
-        
+
         try:
             import tomllib
         except ImportError:
             # If no tomllib, it should not fail but fields remain TBD
             assert "Python" not in content
             return
-            
+
         assert "- **Language(s):** Python" in content
         assert "- **Runtime:** Python >=3.11" in content
         assert "- Setup: poetry install" in content
@@ -830,11 +917,10 @@ class TestDetectManifests:
     def test_detect_no_manifests_leaves_tbd(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        
+
         args = make_init_args(detect=True)
         cli.apply_updates(str(tmp_path), args)
-        
+
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "- **Runtime:** TBD" in content
         assert "- Setup: TBD" in content
-
