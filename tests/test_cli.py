@@ -700,3 +700,72 @@ class TestCmdStatus:
         cli.cmd_status(make_status_args())
         out = capsys.readouterr().out
         assert "not a file" in out
+
+    def test_soft_line_budget(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text("line\n" * 201, encoding="utf-8")
+        
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "(201 lines >= 200)" in out
+
+    def test_hard_line_budget(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text("line\n" * 301, encoding="utf-8")
+        
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "(301 lines >= 300)" in out
+        assert "too large" in out
+
+    def test_broken_reference(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text("Here is a [link](docs/missing.md \"Title\") and `docs/also-missing.md`", encoding="utf-8")
+        
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "Broken reference: docs/missing.md" in out
+        assert "Broken reference: docs/also-missing.md" in out
+
+    def test_valid_reference(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text("Valid link: [project](docs/PROJECT.md) and [x](../secret.md)", encoding="utf-8")
+        
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "Broken reference" not in out
+
+    def test_outside_reference_ignored_no_crash(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        agents = tmp_path / "AGENTS.md"
+        # Test paths that resolve outside the root (should be ignored, not crash)
+        agents.write_text("See `../secret.md` or `../../outside.txt`", encoding="utf-8")
+        
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "Broken reference" not in out
+

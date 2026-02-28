@@ -4,6 +4,7 @@
 import argparse
 import importlib.metadata
 import os
+import re
 import shutil
 import sys
 from datetime import date, datetime
@@ -492,6 +493,8 @@ def cmd_status(args):
 
     missing = []
     tbd = []
+    hard_violations = []
+    broken_refs = []
     files_to_check = MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
 
     print(f"{_c('Agent Context Status', _BOLD)}")
@@ -512,27 +515,102 @@ def cmd_status(args):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     content = f.read()
+                
+                lines = content.splitlines()
+                line_count = len(lines)
+                is_always_loaded = not rel.startswith("docs/") and rel != ".gitignore"
+                
+                status_symbol = _c('+', _GREEN)
+                msgs = []
+                hints = []
+                
                 if "TBD" in content:
                     tbd.append(rel)
-                    print(f"  {_c('!', _YELLOW)} {rel} {_c('(contains TBD, needs update)', _YELLOW)}")
-                else:
-                    print(f"  {_c('+', _GREEN)} {rel}")
+                    status_symbol = _c('!', _YELLOW)
+                    msgs.append(_c('(contains TBD, needs update)', _YELLOW))
+                
+                if line_count >= 300 and is_always_loaded:
+                    hard_violations.append(rel)
+                    status_symbol = _c('x', _RED)
+                    msgs.append(_c(f'({line_count} lines >= 300)', _RED))
+                    if "CLAUDE.md" in rel or "GEMINI.md" in rel:
+                        hints.append(f"Move details to docs/ and keep {os.path.basename(rel)} as a router (10–20 lines).")
+                    elif "AGENTS.md" in rel:
+                        hints.append("Split AGENTS.md into topic docs and link them.")
+                    else:
+                        hints.append(f"Reduce size of {rel} to keep context lean.")
+                elif line_count >= 200:
+                    status_symbol = _c('!', _YELLOW) if status_symbol != _c('x', _RED) else status_symbol
+                    msgs.append(_c(f'({line_count} lines >= 200)', _YELLOW))
+                    if is_always_loaded:
+                        hints.append(f"Consider moving details from {os.path.basename(rel)} to docs/.")
+                    else:
+                        hints.append("Consider splitting this document if it grows further.")
+                
+                msg_str = " ".join(msgs)
+                print(f"  {status_symbol} {rel} {msg_str}".rstrip())
+                for hint in hints:
+                    print(f"      {_c('Hint:', _CYAN)} {hint}")
+                
+                if rel == "AGENTS.md":
+                    # Check broken references
+                    md_links = re.findall(r'\[.*?\]\(([^)]+)\)', content)
+                    code_links = re.findall(r'`([^`\n]+)`', content)
+                    
+                    potential_paths = set(md_links + code_links)
+                    for line in lines:
+                        line = line.strip()
+                        if line and ' ' not in line and ('/' in line or '\\' in line) and not line.startswith('#'):
+                            potential_paths.add(line)
+                            
+                    seen_broken = set()
+                    dest_real = os.path.realpath(dest)
+                    for p in potential_paths:
+                        p = p.split('#', 1)[0]
+                        p = p.split('?', 1)[0]
+                        p = p.strip()
+                        if ' ' in p:
+                            p = p.split()[0]
+                            
+                        if not p:
+                            continue
+                        if p.startswith(('http://', 'https://', 'mailto:', '/')):
+                            continue
+                        if not ('/' in p or '\\' in p or p.endswith(('.md', '.mdc', '.txt', '.py', '.yml', '.yaml'))):
+                            continue
+                            
+                        target_path = os.path.join(dest_real, p)
+                        if not _resolves_within(dest_real, target_path):
+                            continue
+                            
+                        target_real = os.path.realpath(target_path)
+                        if not os.path.exists(target_real):
+                            if p not in seen_broken:
+                                seen_broken.add(p)
+                                broken_refs.append(p)
+                                print(f"      {_c('x', _RED)} Broken reference: {p}")
+                                print(f"      {_c('Hint:', _CYAN)} Fix broken link: create {p} or remove the reference.")
+                            
             except (OSError, UnicodeDecodeError):
                 missing.append(rel)
                 print(f"  {_c('x', _RED)} {rel} {_c('(unreadable)', _RED)}")
 
     print()
-    if missing or tbd:
+    if missing or tbd or hard_violations or broken_refs:
         issues = []
         if missing:
             issues.append(f"{len(missing)} missing")
         if tbd:
             issues.append(f"{len(tbd)} incomplete")
+        if hard_violations:
+            issues.append(f"{len(hard_violations)} too large")
+        if broken_refs:
+            issues.append(f"{len(broken_refs)} broken refs")
         print(f"Result: {_c('Action required', _YELLOW)} ({', '.join(issues)})")
         if args.check:
             sys.exit(1)
     else:
-        print(f"Result: {_c('Ready', _GREEN)} (All files present and filled)")
+        print(f"Result: {_c('Ready', _GREEN)} (All files present, filled, and within budgets)")
         if args.check:
             sys.exit(0)
 
