@@ -2,6 +2,8 @@
 
 ![CI](https://github.com/Lucenx9/agentinit/actions/workflows/ci.yml/badge.svg)
 
+![Preview](https://raw.githubusercontent.com/Lucenx9/agentinit/main/assets/preview.png)
+
 Scaffold tiny context files so your AI coding agents stop guessing your setup.
 Pure Python stdlib, no runtime dependencies, nothing touches your source code.
 
