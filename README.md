@@ -31,12 +31,19 @@ Then fill only `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
 
 Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
 
-### I just want to save tokens
+What you get:
 
-- Minimal mode creates only 4 files: `AGENTS.md`, `CLAUDE.md`, `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
-- You only need to fill `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
+```
+your-project/
+├── AGENTS.md              # entry point for all agents
+├── CLAUDE.md              # Claude Code router
+└── docs/
+    ├── PROJECT.md         # what this project is (fill this)
+    └── CONVENTIONS.md     # how to work in it (fill this)
+```
+
 - Use `--purpose` to prefill Purpose without prompts, or `--prompt` to run a short interactive wizard.
-- Keep reading this README only if you want advanced usage.
+- Keep reading only if you want full mode or advanced usage.
 
 ### Token savings (rough estimate)
 
@@ -88,10 +95,9 @@ git init && git add -A && git commit -m "init: add agent context files"
 
 For an existing project, run `agentinit init` in the repo root instead of `agentinit new`.
 
-## Fill the docs fast (AI prompt)
+### Fill the docs fast (AI prompt)
 
-After scaffolding, paste this prompt into Claude Code, Cursor, or Gemini CLI
-to auto-populate `docs/PROJECT.md` and `docs/CONVENTIONS.md`:
+After scaffolding, paste this into your agent to auto-populate the docs:
 
 > Read the entire repository. Then fill in `docs/PROJECT.md` and
 > `docs/CONVENTIONS.md` using **only** information you find in the repo
@@ -101,13 +107,6 @@ to auto-populate `docs/PROJECT.md` and `docs/CONVENTIONS.md`:
 > it in later. Do not modify any other files.
 
 Review the result, fix any TODOs, and commit.
-
-## Design principles
-
-- **One source of truth:** keep durable project context in `docs/*`.
-- **Small routers:** keep entry-point files short (don't paste long policies everywhere).
-- **Cross-tool friendly:** each tool gets its own small entry file that points to the same `docs/*`.
-- **Low bloat:** prefer updating `docs/*` over growing router files.
 
 ## Install
 
@@ -180,7 +179,8 @@ agentinit remove --archive    # move to .agentinit-archive/ instead of deleting
 agentinit remove --force      # skip confirmation prompt
 ```
 
-## Generated files
+<details>
+<summary>Generated files and maintenance tips</summary>
 
 ### Source of truth
 
@@ -203,7 +203,7 @@ agentinit remove --force      # skip confirmation prompt
 
 Each router points to `AGENTS.md` → `docs/*`. Keep them short.
 
-## How to keep it healthy
+### Keeping it healthy
 
 - If guidance changes: update **docs/** first, not router files.
 - Keep router files under ~20 lines.
@@ -212,11 +212,9 @@ Each router points to `AGENTS.md` → `docs/*`. Keep them short.
 
 ### Manual setup (no CLI)
 
-Copy these into your repo root:
+Copy into your repo root: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/` — then customize `docs/*` and commit.
 
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/`
-
-Then customize `docs/*` and commit.
+</details>
 
 ## Updating (pipx)
 
