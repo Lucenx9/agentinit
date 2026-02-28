@@ -2,6 +2,7 @@
 """agentinit — scaffold agent context files into a project."""
 
 import argparse
+import importlib.metadata
 import os
 import shutil
 import sys
@@ -116,7 +117,7 @@ def apply_updates(dest, args):
     wizard_run = args.prompt
     if wizard_run:
         if not sys.stdin.isatty():
-            print("Error: --prompt requires an interactive TTY.", file=sys.stderr)
+            print("Error: --prompt requires an interactive terminal. Use --purpose for non-interactive prefill, or run without --prompt.", file=sys.stderr)
             sys.exit(1)
         purpose = args.purpose
         while not purpose:
@@ -413,6 +414,11 @@ def main():
     parser = argparse.ArgumentParser(
         prog="agentinit",
         description="Scaffold agent context files into a project.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=importlib.metadata.version("agentinit"),
     )
     sub = parser.add_subparsers(dest="command")
 

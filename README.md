@@ -129,13 +129,17 @@ pipx run --spec git+https://github.com/Lucenx9/agentinit.git@main agentinit --he
 agentinit new myproject
 ```
 
-You will be prompted for a one-line project purpose. Use `--yes` to skip the prompt (sets purpose to "TBD").
+Purpose defaults to "TBD". You can set it with `--purpose "my purpose"`,
+or run `--prompt` to launch a short interactive wizard (requires a TTY).
 
 Flags:
 
 - `--yes` / `-y` — skip prompts
 - `--dir <path>` — create the project under a different parent directory
 - `--force` — overwrite agentinit files (including TODO/DECISIONS) if the directory already exists
+- `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
+- `--purpose "<text>"` — prefill Purpose without prompts
+- `--prompt` — run a short interactive wizard (requires a TTY)
 
 ### Add to an existing project
 
@@ -149,6 +153,9 @@ Copies only missing template files. Safe to run multiple times (idempotent).
 Flags:
 
 - `--force` — overwrite existing agentinit files (including TODO/DECISIONS)
+- `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
+- `--purpose "<text>"` — prefill Purpose without prompts
+- `--prompt` — run a short interactive wizard (requires a TTY)
 
 ### Remove agentinit files
 
@@ -196,6 +203,16 @@ Copy these into your repo root:
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/`
 
 Then customize `docs/*` and commit.
+
+## Updating (pipx)
+
+```sh
+# From PyPI / GitHub (installed with pipx)
+pipx upgrade agentinit
+
+# From a Git install pinned to main
+pipx install --force git+https://github.com/Lucenx9/agentinit.git@main
+```
 
 ## Development
 

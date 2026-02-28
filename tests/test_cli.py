@@ -171,7 +171,9 @@ class TestApplyUpdates:
         with pytest.raises(SystemExit) as exc:
             cli.apply_updates(str(tmp_path), args)
         assert exc.value.code == 1
-        assert "requires an interactive TTY" in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert "requires an interactive terminal" in err
+        assert "--purpose" in err
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +368,15 @@ class TestMain:
         with pytest.raises(SystemExit) as exc:
             cli.main()
         assert exc.value.code == 0
+
+    def test_version_flag(self, monkeypatch, capsys):
+        import re
+        monkeypatch.setattr(sys, "argv", ["agentinit", "--version"])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+        out = capsys.readouterr().out.strip()
+        assert re.match(r"\d+\.\d+\.\d+", out), f"expected semver, got {out!r}"
 
 
 # ---------------------------------------------------------------------------
