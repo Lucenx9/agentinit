@@ -4,6 +4,7 @@
 **Details:** Load `docs/PROJECT.md`, `docs/CONVENTIONS.md`, or `docs/DECISIONS.md` on demand as needed for the task.
 
 **Commands:**
+
 - Setup: TBD
 - Build: TBD
 - Test: TBD

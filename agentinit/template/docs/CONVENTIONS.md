@@ -1,25 +1,25 @@
-# Conventions Template
+# Conventions
 
 ## Style
 
-- Formatting standard: TBD
-- Documentation tone/language: English
-- Commenting expectations: TBD
+- **Formatting standard:** TBD
+- **Documentation tone/language:** English
+- **Commenting expectations:** TBD
 
 ## Naming
 
-- Files/directories: TBD
-- Variables/functions/types: TBD
-- Branch naming: TBD
+- **Files/directories:** TBD
+- **Variables/functions/types:** TBD
+- **Branch naming:** TBD
 
 ## Testing
 
-- Required test types: TBD
-- Minimum coverage or quality gates: TBD
-- Test data and fixtures policy: TBD
+- **Required test types:** TBD
+- **Minimum coverage/gates:** TBD
+- **Test data/fixtures:** TBD
 
 ## Git Workflow
 
-- Commit message format: TBD
-- PR requirements and review policy: TBD
-- Merge strategy and release tagging: TBD
+- **Commit message format:** TBD
+- **PR requirements/reviews:** TBD
+- **Merge strategy:** TBD

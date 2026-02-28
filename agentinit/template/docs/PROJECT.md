@@ -1,33 +1,23 @@
-# Project Template
+# Project Context
 
-## Purpose
+**Purpose:** TBD (Describe what this project is for and expected outcomes)
 
-Describe what this project is for, who it serves, and the expected outcomes.
+## Stack
 
-## Stack (TBD)
-
-- Runtime: TBD
-- Language(s): TBD
-- Framework(s): TBD
-- Storage/Infra: TBD
-
-## Commands (TBD)
-
-- Setup: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
-- Run: TBD
+- **Runtime:** TBD
+- **Language(s):** TBD
+- **Framework(s):** TBD
+- **Storage/Infra:** TBD
 
 ## Layout
 
 - `AGENTS.md`: Primary router.
 - `docs/`: Source-of-truth context and memory files.
-- `src/` or equivalent: TBD.
-- `tests/` or equivalent: TBD.
+- `src/`: TBD
+- `tests/`: TBD
 
 ## Constraints
 
-- Document non-negotiable constraints here.
-- List security/compliance/performance boundaries.
-- Note delivery deadlines or operational limits.
+- **Security:** TBD
+- **Performance:** TBD
+- **Deadlines/Limits:** TBD
