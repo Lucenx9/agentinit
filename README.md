@@ -33,7 +33,7 @@ Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
 
 What you get:
 
-```
+```text
 your-project/
 ├── AGENTS.md              # entry point for all agents
 ├── CLAUDE.md              # Claude Code router
