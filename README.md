@@ -18,6 +18,61 @@ Coding agents are more consistent when they always have:
 `agentinit` gives you a minimal, version-controlled set of Markdown files
 to keep that context stable and avoid duplicated instruction blocks.
 
+## Who is this for?
+
+Anyone who uses AI coding agents and wants them to behave consistently
+across sessions and tools. If you've ever had an agent guess your test
+command, ignore your style rules, or forget what the project does — this
+is what agentinit fixes.
+
+## What it does (and doesn't)
+
+**Does:**
+
+- Creates a small set of Markdown files (`AGENTS.md`, `docs/*`, tool-specific routers).
+- Gives every agent the same starting context: project purpose, conventions, active work, past decisions.
+- Works with Claude Code, Gemini CLI, GitHub Copilot, and Cursor out of the box.
+
+**Doesn't:**
+
+- Run your agents for you.
+- Require any runtime dependency — it's pure Python stdlib.
+- Touch your source code, configs, or `.gitignore` contents (`.gitignore` is never overwritten).
+
+## Quickstart (60 seconds)
+
+```sh
+# 1. Install
+pipx install git+https://github.com/Lucenx9/agentinit.git@main
+
+# 2. Scaffold a new project
+agentinit new myproject --yes
+cd myproject
+
+# 3. Fill in the docs with your project's real info
+#    (see "Fill the docs fast" below for an AI-assisted shortcut)
+$EDITOR docs/PROJECT.md docs/CONVENTIONS.md
+
+# 4. Commit and you're done
+git init && git add -A && git commit -m "init: add agent context files"
+```
+
+For an existing project, run `agentinit init` in the repo root instead of `agentinit new`.
+
+## Fill the docs fast (AI prompt)
+
+After scaffolding, paste this prompt into Claude Code, Cursor, or Gemini CLI
+to auto-populate `docs/PROJECT.md` and `docs/CONVENTIONS.md`:
+
+> Read the entire repository. Then fill in `docs/PROJECT.md` and
+> `docs/CONVENTIONS.md` using **only** information you find in the repo
+> (package files, existing configs, source code, CI workflows, etc.).
+> Do not invent commands or assumptions. Where information is missing
+> or ambiguous, write `TODO: <what's needed>` so the developer can fill
+> it in later. Do not modify any other files.
+
+Review the result, fix any TODOs, and commit.
+
 ## Design principles
 
 - **One source of truth:** keep durable project context in `docs/*`.
