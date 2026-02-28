@@ -24,6 +24,13 @@ MANAGED_FILES = [
     ".github/copilot-instructions.md",
 ]
 
+MINIMAL_MANAGED_FILES = [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/PROJECT.md",
+    "docs/CONVENTIONS.md",
+]
+
 
 # Files that `remove` will delete or archive.
 # .gitignore is intentionally excluded — it's a common file users may rely on.
@@ -58,7 +65,7 @@ def _resolves_within(root, path):
         return False
 
 
-def copy_template(dest, force=False):
+def copy_template(dest, force=False, minimal=False):
     """Copy template files into dest. Skip files that already exist unless force.
 
     .gitignore is never overwritten, even with --force, because users commonly
@@ -67,7 +74,8 @@ def copy_template(dest, force=False):
     copied = []
     skipped = []
     dest_real = os.path.realpath(dest)
-    for rel in MANAGED_FILES:
+    files_to_copy = MINIMAL_MANAGED_FILES if minimal else MANAGED_FILES
+    for rel in files_to_copy:
         src = os.path.join(TEMPLATE_DIR, rel)
         dst = os.path.join(dest, rel)
         if not os.path.exists(src):
@@ -217,15 +225,16 @@ def cmd_new(args):
 
     # Create dir and copy template
     os.makedirs(dest, exist_ok=True)
-    copied, skipped = copy_template(dest, force=args.force)
+    copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
     if not copied and not skipped:
         print("Error: no template files copied. Installation may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
     # Customize generated files
     write_purpose(dest, purpose)
-    write_todo(dest, force=args.force)
-    write_decisions(dest, force=args.force)
+    if not args.minimal:
+        write_todo(dest, force=args.force)
+        write_decisions(dest, force=args.force)
 
     print(f"Created project at {dest}")
     if copied:
@@ -237,7 +246,7 @@ def cmd_new(args):
 def cmd_init(args):
     dest = os.path.abspath(".")
 
-    copied, skipped = copy_template(dest, force=args.force)
+    copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
 
     if not copied and not skipped:
         print("Nothing to do — template directory not found.")
@@ -355,10 +364,20 @@ def main():
     p_new.add_argument("--yes", "-y", action="store_true", help="Skip prompts (set purpose to TBD).")
     p_new.add_argument("--dir", help="Parent directory (default: current directory).")
     p_new.add_argument("--force", action="store_true", help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.")
+    p_new.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
+    )
 
     # agentinit init
     p_init = sub.add_parser("init", help="Add missing agent context files to the current directory.")
     p_init.add_argument("--force", action="store_true", help="Overwrite existing agentinit files (including TODO/DECISIONS).")
+    p_init.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
+    )
 
     # agentinit remove
     p_remove = sub.add_parser("remove", help="Remove agentinit-managed files from the current directory.")

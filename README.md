@@ -59,6 +59,16 @@ git init && git add -A && git commit -m "init: add agent context files"
 
 For an existing project, run `agentinit init` in the repo root instead of `agentinit new`.
 
+## Save tokens fast (Minimal mode)
+
+Create only the core router + docs files:
+
+```sh
+agentinit init --minimal
+# or for a new project:
+agentinit new myproject --yes --minimal
+```
+
 ## Fill the docs fast (AI prompt)
 
 After scaffolding, paste this prompt into Claude Code, Cursor, or Gemini CLI

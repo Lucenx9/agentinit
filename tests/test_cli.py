@@ -20,13 +20,14 @@ def make_args(**kwargs):
         "dir": None,
         "force": False,
         "yes": True,
+        "minimal": False,
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
 
 def make_init_args(**kwargs):
-    defaults = {"force": False}
+    defaults = {"force": False, "minimal": False}
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
@@ -218,6 +219,18 @@ class TestCmdNew:
         # with force=True, TODO gets overwritten
         assert "# TODO" in todo.read_text()
 
+    def test_minimal_creates_only_core_files(self, tmp_path):
+        args = make_args(name="myproj", dir=str(tmp_path), minimal=True)
+        cli.cmd_new(args)
+        proj = tmp_path / "myproj"
+        files = sorted(str(p.relative_to(proj)) for p in proj.rglob("*") if p.is_file())
+        assert files == [
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/CONVENTIONS.md",
+            "docs/PROJECT.md",
+        ]
+
 
 # ---------------------------------------------------------------------------
 # cmd_init
@@ -235,6 +248,31 @@ class TestCmdInit:
         cli.cmd_init(make_init_args())
         out = capsys.readouterr().out
         assert "already present" in out
+
+    def test_minimal_creates_only_core_files(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        files = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*") if p.is_file())
+        assert files == [
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/CONVENTIONS.md",
+            "docs/PROJECT.md",
+        ]
+
+    def test_minimal_does_not_overwrite_project_or_conventions_without_force(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        project = docs / "PROJECT.md"
+        conventions = docs / "CONVENTIONS.md"
+        project.write_text("custom project")
+        conventions.write_text("custom conventions")
+
+        cli.cmd_init(make_init_args(minimal=True, force=False))
+
+        assert project.read_text() == "custom project"
+        assert conventions.read_text() == "custom conventions"
 
 
 # ---------------------------------------------------------------------------

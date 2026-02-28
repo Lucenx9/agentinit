@@ -16,3 +16,4 @@
 ## Done
 
 - Scaffolded agent router and docs templates.
+- Added `--minimal` mode to `agentinit init` and `agentinit new`.
