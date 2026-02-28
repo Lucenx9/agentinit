@@ -1,13 +1,13 @@
 # Copilot Instructions
 
-Use `AGENTS.md` as the primary router and source of truth.
-Load docs/* files on demand as needed for the task.
-Keep this file short; do not duplicate long guidance.
+**Router:** Use `AGENTS.md` as the primary router and source of truth.
+**Details:** Load `docs/PROJECT.md`, `docs/CONVENTIONS.md`, or `docs/DECISIONS.md` on demand as needed for the task.
 
-## Build/Test
-
+**Commands:**
+- Setup: TBD
 - Build: TBD
 - Test: TBD
 - Lint/Format: TBD
+- Run: TBD
 
-Update `docs/TODO.md` and `docs/DECISIONS.md` as work progresses.
+*Keep this file short; do not duplicate long guidance here. Route to `docs/` instead.*

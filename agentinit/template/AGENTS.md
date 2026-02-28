@@ -1,27 +1,30 @@
-# Agent Router
+# Agent Instructions (AGENTS.md)
 
-This repository standardizes context/memory files for coding agents.
-AGENTS.md is the source of truth; avoid copying policy text into other router files.
+**Purpose:** Primary entry point for coding agents to understand the project structure and rules.
 
-Context files (load when relevant to the task):
+**Non-obvious conventions / landmines:**
+- (Add project-specific warnings, anti-patterns, or strict rules here)
+- ...
 
-- docs/PROJECT.md — scope, stack, layout, constraints
-- docs/CONVENTIONS.md — style, naming, testing, git workflow
-- docs/TODO.md — active work, plans, assumptions
-- docs/DECISIONS.md — past architectural choices and rationale
-
-Commands (TBD):
-
+**Commands:**
 - Setup: TBD
 - Build: TBD
 - Test: TBD
 - Lint/Format: TBD
 - Run: TBD
 
-Rules:
+**When unsure:**
+- Ask for clarification / confirm assumptions before risky changes.
+- Read the linked files in `docs/` for deeper context.
 
-1. Read the relevant docs/* file before making changes in that area.
-2. Log active plans and assumptions in docs/TODO.md.
-3. Record durable choices in docs/DECISIONS.md.
-4. Update docs/PROJECT.md when scope, stack, or layout changes.
-5. If something is missing, update docs/* instead of adding text here.
+**Context files (load when relevant):**
+- `docs/PROJECT.md` — Scope, stack, layout, constraints.
+- `docs/CONVENTIONS.md` — Style, naming, testing, git workflow.
+- `docs/TODO.md` — Active work, plans, assumptions.
+- `docs/DECISIONS.md` — Past architectural choices and rationale.
+
+**Token discipline:**
+- Keep this `AGENTS.md` file short (~60–120 lines).
+- Move long explanations, architecture notes, and deep dives to `docs/`.
+- Prefer linking to other files over inline dumps.
+- Don't repeatedly re-read these files unless they changed.
