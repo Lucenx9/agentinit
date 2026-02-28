@@ -155,11 +155,11 @@ Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--for
 agentinit status
 ```
 
-Shows which agent context files are present, missing, or still need to be filled in (contain 'TBD').
+Shows which agent context files are present, missing, or still need to be filled in (contain 'TBD'). It also acts as a "token/bloat guardrail" by warning if files exceed line budgets (200 lines soft limit, 300 lines hard limit for core routers) and detecting broken file references in `AGENTS.md`.
 
 Flags:
 
-- `--check` — exit with code 1 if files are missing or incomplete (useful for CI pipelines)
+- `--check` — exit with code 1 if files are missing, incomplete, contain broken links, or violate hard line budgets (useful for CI pipelines)
 - `--minimal` — check only the core minimal files
 
 ### Remove agentinit files
@@ -262,7 +262,6 @@ git branch -D agentinit-test
 ## Planned
 
 - `--json` output mode for scripting and CI pipelines
-- `agentinit build` — validate pointers, enforce line limits, and sanity-check structure
 
 ## License
 
