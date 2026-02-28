@@ -151,17 +151,26 @@ agentinit minimal
 
 Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`).
 
-### Check project status
+### Token discipline (status)
+
+`agentinit status` acts as a guardrail against context bloat. It verifies file presence and completeness (checks for `TBD`), while enforcing line budgets and link integrity.
+
+- **Line budgets:** Warns if context files exceed 200 lines (soft limit) or 300 lines (hard limit).
+- **Link integrity:** Detects broken file references within `AGENTS.md`.
+
+**Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are strictly 10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
 
 ```sh
+# View current status, warnings, and missing files
 agentinit status
-```
 
-Shows which agent context files are present, missing, or still need to be filled in (contain 'TBD'). It also acts as a "token/bloat guardrail" by warning if files exceed line budgets (200 lines soft limit, 300 lines hard limit for core routers) and detecting broken file references in `AGENTS.md`.
+# Exit non-zero on hard limit violations, broken refs, or missing/TBD files
+agentinit status --check
+```
 
 Flags:
 
-- `--check` — exit with code 1 if files are missing, incomplete, contain broken links, or violate hard line budgets (useful for CI pipelines)
+- `--check` — exit non-zero on hard violations, broken refs, or missing/TBD files
 - `--minimal` — check only the core minimal files
 
 ### Remove agentinit files
