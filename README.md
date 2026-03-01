@@ -47,6 +47,7 @@ Some agents only scan tracked files or respect `.gitignore`. If your agent says 
   git add AGENTS.md CLAUDE.md docs/
   git add GEMINI.md .agents/  # if present
   ```
+
 - **Verify ignores:** Run `git status --ignored` or `git check-ignore -v docs/PROJECT.md` to see if your `.gitignore` is hiding them.
 
 <details>
@@ -66,6 +67,7 @@ If your `.gitignore` is aggressively ignoring markdown files or directories, you
 !.agents/
 !.agents/**
 ```
+
 </details>
 
 ---
