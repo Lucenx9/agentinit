@@ -885,6 +885,8 @@ def cmd_status(args):
                             continue
                         if p.startswith(("http://", "https://", "mailto:", "/")):
                             continue
+                        if "*" in p:
+                            continue
                         if not (
                             "/" in p
                             or "\\" in p
