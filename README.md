@@ -4,172 +4,57 @@
 
 <img src="https://raw.githubusercontent.com/Lucenx9/agentinit/main/assets/preview.png" width="900" alt="agentinit preview" />
 
-Scaffold tiny context files so your AI coding agents stop guessing your setup.
-Pure Python stdlib, no runtime dependencies, nothing touches your source code.
+Scaffold tiny, router-first context files so your AI coding agents stop guessing your project setup, style rules, and test commands.
 
-Works with Claude Code, Codex, Cursor, Copilot, and Gemini CLI.
+Pure Python standard library. No runtime dependencies. Does not touch your source code.
+Works seamlessly with **Claude Code**, **Codex**, **Cursor**, **Copilot**, and **Gemini CLI**.
 
-If you've ever had an agent guess your test command, ignore your style rules,
-or forget what the project does — `agentinit` creates a small set of **"router-first"** Markdown
-files. Top-level files stay tiny and route every agent to `docs/` for the real context,
-reducing repeated tokens across sessions.
-
-## Save tokens fast (Minimal mode, 2 minutes)
+## 🚀 Start in 60 seconds
 
 ```sh
-# Existing repo/folder:
-agentinit init --minimal
+# 1. Install via pipx (recommended)
+pipx install agentinit
 
-# New project:
-agentinit new myproject --yes --minimal
+# 2. Add minimal agent context to your project
+cd your-project
+agentinit init --minimal
 ```
 
-Then fill only `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
-Full mode also adds `docs/TODO.md`, `docs/DECISIONS.md`, and `docs/STATE.md`.
+### What it does
 
-Next time, tell your agent: follow the router for your tool (`CLAUDE.md` / `GEMINI.md` / Copilot / Cursor) → `AGENTS.md`.
-
-What you get:
+Instead of giant, token-heavy instruction files for every tool, `agentinit` creates a **router-first** structure. Top-level files stay tiny (~10 lines) and route every agent to `docs/` for the real context.
 
 ```text
 your-project/
-├── AGENTS.md              # entry point for all agents
+├── AGENTS.md              # The central hub for all agents
 ├── CLAUDE.md              # Claude Code router
 └── docs/
-    ├── PROJECT.md         # what this project is (fill this)
-    └── CONVENTIONS.md     # how to work in it (fill this)
+    ├── PROJECT.md         # What this project is (you fill this)
+    └── CONVENTIONS.md     # How to work in it (you fill this)
 ```
 
-- On a terminal, a short interactive wizard runs automatically — use `--yes` to skip it.
-- Use `--purpose "..."` to prefill Purpose non-interactively (e.g. in CI).
-- Keep reading only if you want full mode or advanced usage.
+**Next steps:** Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and fill them in.
 
-### Token savings (rough estimate)
+**Next session:** Tell your agent: _"follow the router for your tool (CLAUDE.md / GEMINI.md / etc) → AGENTS.md"_
 
-- Top-level routers (`CLAUDE.md`, `GEMINI.md`, Cursor rules) are kept to ~10–20 lines.
-- Tokens saved ≈ tokens you usually re-type per session × number of sessions.
-- If you re-type ~200–400 tokens and do 10–20 sessions/month: ~2k–8k tokens/month.
-- Actual savings depend on your workflow and which tool loads which files.
+---
 
-## Quickstart (60 seconds)
+## 🛠️ Add extras (Skills, MCP, Personality)
 
-```sh
-# 1. Install (stable)
-pipx install agentinit
-
-# Or bleeding edge:
-# pipx install git+https://github.com/Lucenx9/agentinit.git@main
-
-# 2. Scaffold a new project
-agentinit new myproject --yes
-cd myproject
-
-# 3. Open these files in your code editor (VSCode, Cursor, etc.)
-#    and fill them in with your project's real info.
-#    (see "Fill the docs fast" below for an AI-assisted shortcut)
-
-# 4. Commit and you're done
-git init && git add -A && git commit -m "init: add agent context files"
-```
-
-For an existing project, run `agentinit init` in the repo root instead of `agentinit new`.
-
-### Fill the docs fast (AI prompt)
-
-After scaffolding, paste this into your agent to auto-populate the docs:
-
-> Read the entire repository. Then fill in `docs/PROJECT.md` and
-> `docs/CONVENTIONS.md` using **only** information you find in the repo
-> (package files, existing configs, source code, CI workflows, etc.).
-> Do not invent commands or assumptions. Where information is missing
-> or ambiguous, write `TODO: <what's needed>` so the developer can fill
-> it in later. Do not modify any other files.
-
-Review the result, fix any TODOs, and commit.
-
-## Install
-
-Requires Python 3.10+.
-
-```sh
-# With pipx (recommended, stable)
-pipx install agentinit
-
-# With pip
-pip install agentinit
-
-# Or run one-off without installing
-pipx run agentinit -- --help
-
-# Bleeding edge (latest on main)
-# pipx install git+https://github.com/Lucenx9/agentinit.git@main
-```
-
-## Usage
-
-### Create a new project
-
-```sh
-agentinit new myproject
-```
-
-On a terminal, a short interactive wizard asks for purpose, environment,
-constraints, and commands. Use `--yes` to skip it, or `--purpose "..."` to
-prefill non-interactively.
-
-Flags:
-
-- `--yes` / `-y` — skip the interactive wizard
-- `--dir <path>` — create the project under a different parent directory
-- `--force` — overwrite agentinit files (including TODO/DECISIONS) if the directory already exists
-- `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
-- `--purpose "<text>"` — prefill Purpose non-interactively
-- `--prompt` — force the interactive wizard (TTY required)
-- `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; leaves `TBD` if parsing fails). May apply safe conventional defaults for Setup (e.g. `npm install`) when manifests don't specify explicit scripts.
-
-### Add to an existing project
-
-```sh
-cd your-project
-agentinit init
-```
-
-Copies only missing template files. Safe to run multiple times (idempotent).
-The interactive wizard runs by default on a terminal; pass `--yes` to skip it.
-
-Flags:
-
-- `--yes` / `-y` — skip the interactive wizard
-- `--force` — overwrite existing agentinit files (including TODO/DECISIONS)
-- `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
-- `--purpose "<text>"` — prefill Purpose non-interactively
-- `--prompt` — force the interactive wizard (TTY required)
-- `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; handles missing/odd values safely). May apply safe conventional defaults for Setup when manifests don't specify explicit scripts.
-
-### Quick minimal scaffold
-
-```sh
-agentinit minimal
-```
-
-Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`, `--detect`).
-
-### Add resources (skills, MCP, security, soul)
-
-`agentinit add` lets you inject modular agentic resources like skills, MCP configurations, security rules, and agent personas into your project.
+Agents can do more than just read conventions. You can inject modular resources directly into your project.
 
 ```sh
 # View available resources
 agentinit add --list
 
-# Add specific resources
+# Add specific capabilities
 agentinit add skill code-reviewer
 agentinit add mcp github
 agentinit add security
 agentinit add soul "Lucenx"
 ```
 
-What you get (example):
+This creates modular files and automatically links them in your `AGENTS.md`:
 
 ```text
 your-project/
@@ -180,160 +65,116 @@ your-project/
 │   └── skills/
 │       └── code-reviewer/
 │           └── SKILL.md
-└── AGENTS.md              # automatically updated with links to the new resources
+└── AGENTS.md              # Automatically updated!
 ```
 
-Adding resources is idempotent: running the command multiple times won't duplicate files or `AGENTS.md` entries. If a resource file already exists, it is skipped safely. You can use `--force` to overwrite existing resource files.
+_(Adding resources is safe: it skips existing files to avoid duplicates. Use `--force` to overwrite.)_
 
-**Skill Destinations:** For compatibility, skills are copied to `.agents/skills/<name>/` if the `.agents/` folder exists in your project. Otherwise, they fall back to `.claude/skills/<name>/`. If a skill is already installed in either location, it will be detected and skipped to avoid duplicates.
+---
 
-### Token discipline (status)
+## 🚦 Keep your context clean (Status & CI)
 
-`agentinit status` acts as a guardrail against context bloat. It verifies file presence and completeness (checks for `TBD`), while enforcing line budgets and link integrity.
-
-- **Line budgets:** Warns if context files exceed 200 lines (soft limit) or 300 lines (hard limit).
-- **Link integrity:** Detects broken file references within `AGENTS.md`.
-- **Top offenders:** Summarizes the largest files when issues exist.
-
-```text
-Top offenders:
-  docs/PROJECT.md (45 lines)
-  docs/CONVENTIONS.md (38 lines)
-  AGENTS.md (17 lines)
-```
-
-**Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are ~10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
+Token limits matter. `agentinit` includes a status checker and linter to prevent context bloat, broken links, and missing information.
 
 ```sh
-# View current status, warnings, and missing files
+# View line budgets, broken references, and missing details
 agentinit status
 
-# Exit non-zero on hard limit violations, broken refs, or missing/TBD files
+# Perfect for CI (exits non-zero on hard violations)
 agentinit status --check
 ```
 
-Flags:
+---
 
-- `--check` — exit non-zero on hard violations, broken refs, or missing/TBD files
-- `--minimal` — check only the core minimal files
+## 🤖 AI Prompt: Fill the docs fast
 
-### Linting / CI
+Don't want to write `PROJECT.md` and `CONVENTIONS.md` yourself? After running `agentinit init`, paste this prompt to your favorite AI agent:
 
-`agentinit lint` runs [contextlint](https://github.com/Lucenx9/contextlint) checks (vendored, zero extra dependencies) on your agent context files — line budgets, broken refs, and cross-file duplication.
+> Read the entire repository. Fill in `docs/PROJECT.md` and `docs/CONVENTIONS.md` using **only** facts found in the repo (package files, configs, source code, CI). Do not invent commands. If information is missing, write `TODO: <what's needed>`. Do not modify any other files.
+
+Review the result, fix the TODOs, and commit!
+
+---
+
+<details>
+<summary><b>📚 Advanced Usage & Commands</b></summary>
+
+### Core Commands
+
+- `agentinit new <project>` — Create a new directory and scaffold files.
+- `agentinit init` — Add missing files to an existing directory.
+- `agentinit minimal` — Shortcut for `init --minimal`.
+- `agentinit add <type> <name>` — Add modular resources (skills, mcp, security, soul).
+- `agentinit status` — Check health, line budgets, and broken links.
+- `agentinit lint` — Run `contextlint` to find duplicate text across files.
+- `agentinit remove` — Safely remove or archive agent files.
+
+### Common Flags (init / new / minimal)
+
+- `--yes` or `-y` — Skip the interactive wizard and overwrite existing files (same as `--force`).
+- `--minimal` — Create only the 4 core files (AGENTS.md, CLAUDE.md, and docs).
+- `--detect` — Auto-detect stack and commands from package files (e.g., `package.json`, `pyproject.toml`).
+- `--purpose "<text>"` — Prefill the project purpose non-interactively.
+
+### Linting Options
 
 ```sh
 # Human-readable output
 agentinit lint
 
-# Machine-readable (CI-friendly)
+# Machine-readable JSON for CI
 agentinit lint --format json
 ```
 
-Flags:
-
-- `--format text|json` — output format (default: text)
-- `--config <path>` — path to `.contextlintrc.json` (default: auto-detect)
-- `--no-dup` — disable duplicate-block detection
-- `--root <path>` — repository root to lint (default: current directory)
-
-### Remove agentinit files
+### Removing Files
 
 ```sh
-agentinit remove --dry-run    # preview what would be removed
-agentinit remove              # remove with confirmation prompt
-agentinit remove --archive    # move to .agentinit-archive/ instead of deleting
-agentinit remove --force      # skip confirmation prompt
+agentinit remove --dry-run    # Preview what will happen
+agentinit remove              # Remove with confirmation
+agentinit remove --archive    # Move to .agentinit-archive/ instead of deleting
 ```
-
-<details>
-<summary>Generated files and maintenance tips</summary>
-
-### Source of truth
-
-| File | Purpose |
-| ---- | ------- |
-| `AGENTS.md` | Primary router — all agents start here |
-| `docs/PROJECT.md` | Project purpose, stack, commands, layout, constraints |
-| `docs/CONVENTIONS.md` | Style, naming, testing, git workflow |
-| `docs/TODO.md` | Active work (in progress / next / blocked / done) |
-| `docs/DECISIONS.md` | ADR-lite decision log |
-| `docs/STATE.md` | Current focus, next steps, blockers (session handoff) |
-
-### Tool-specific routers
-
-| File | Tool |
-| ---- | ---- |
-| `CLAUDE.md` | Claude Code |
-| `GEMINI.md` | Gemini CLI |
-| `.github/copilot-instructions.md` | GitHub Copilot |
-| `.cursor/rules/project.mdc` | Cursor |
-
-Each router points to `AGENTS.md` → `docs/*`. Keep them short.
-
-### Keeping it healthy
-
-- If guidance changes: update **docs/** first, not router files.
-- Keep router files under ~20 lines.
-- Log durable decisions in `docs/DECISIONS.md` (date · decision · rationale · alternatives).
-- Use `docs/TODO.md` as the "current state" so new sessions start with the right focus.
-
-### Manual setup (no CLI)
-
-Copy into your repo root: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/`, `.github/`, `.cursor/` — then customize `docs/*` and commit.
 
 </details>
 
-## Updating (pipx)
+<details>
+<summary><b>💡 Why Router-First?</b></summary>
+
+- **Saves Tokens:** Re-typing 400 tokens per session across 20 sessions/month wastes 8k+ tokens.
+- **Single Source of Truth:** Update a convention once in `docs/`, and Cursor, Copilot, and Claude all see it.
+- **Prevents Hallucinations:** Agents stop guessing your test command or trying to use the wrong linting tool.
+- **Faster Onboarding:** Human developers benefit from reading `PROJECT.md` just as much as the AI does.
+
+</details>
+
+<details>
+<summary><b>⚙️ Installation & Development</b></summary>
+
+Requires **Python 3.10+**.
 
 ```sh
-# From PyPI / GitHub (installed with pipx)
+# Install (pipx is recommended for CLI apps)
+pipx install agentinit
+
+# Update
 pipx upgrade agentinit
 
-# From a Git install pinned to main
-pipx install --force git+https://github.com/Lucenx9/agentinit.git@main
+# Install without pipx
+pip install agentinit
 ```
 
-## Color output
+### Color Output
 
-Output is colored by default on terminals. Color is automatically disabled when
-piping, redirecting, or in CI. You can also disable it explicitly:
+Colored output is enabled on terminals. It disables automatically in CI or when piping. Force disable it with:
 
 ```sh
 NO_COLOR=1 agentinit init
 ```
 
-Respects the [NO_COLOR](https://no-color.org/) standard and `TERM=dumb`.
-
-## Development
+### Development
 
 ```sh
-# Requires pip >= 25.1 for --group support (PEP 735)
 pip install -e . --group dev
 python3 -m pytest tests/ -v
-
-# Older pip: install dev deps manually
-# pip install -e . && pip install pytest
-```
-
-<details>
-<summary>Maintainers</summary>
-
-### Release
-
-- Tags follow `vX.Y.Z` (e.g. `v0.2.0`).
-- Tag a commit on `main`, then publish a GitHub Release from the Releases UI.
-
-### Safe testing
-
-Use `git worktree` to test changes in isolation:
-
-```sh
-git worktree add ../agentinit-test -b agentinit-test
-cd ../agentinit-test
-# test template changes
-cd -
-git worktree remove ../agentinit-test
-git branch -D agentinit-test
 ```
 
 </details>
