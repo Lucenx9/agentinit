@@ -7,7 +7,7 @@
 Scaffold tiny, router-first context files so your AI coding agents stop guessing your project setup, style rules, and test commands.
 
 Pure Python standard library. No runtime dependencies. Does not touch your source code.
-Works seamlessly with **Claude Code**, **Codex**, **Cursor**, **Copilot**, and **Gemini CLI**.
+Generates router files for **Claude Code**, **Codex**, **Cursor**, **Copilot**, and **Gemini CLI**.
 
 ## 🚀 Start in 60 seconds
 
@@ -22,7 +22,7 @@ agentinit init --minimal
 
 ### What it does
 
-Instead of giant, token-heavy instruction files for every tool, `agentinit` creates a **router-first** structure. Top-level files stay tiny (~10 lines) and route every agent to `docs/` for the real context.
+Instead of giant, token-heavy instruction files for every tool, `agentinit` creates a **router-first** structure. Top-level files stay tiny and only point to `AGENTS.md`, which links to `docs/*`.
 
 ```text
 your-project/
@@ -41,7 +41,7 @@ your-project/
 
 ## 🛠️ Add extras (Skills, MCP, Personality)
 
-Agents can do more than just read conventions. You can inject modular resources directly into your project.
+Agents can do more than just read conventions. You can inject modular resources directly into your project. Resources are written under `.agents/` and linked from `AGENTS.md` automatically.
 
 ```sh
 # View available resources
@@ -79,7 +79,13 @@ Token limits matter. `agentinit` includes a status checker and linter to prevent
 ```sh
 # View line budgets, broken references, and missing details
 agentinit status
+```
 
+_Example output:_  
+`! docs/CONVENTIONS.md (201 lines >= 200)`  
+`x Broken reference: docs/missing-file.md`
+
+```sh
 # Perfect for CI (exits non-zero on hard violations)
 agentinit status --check
 ```
@@ -111,7 +117,7 @@ Review the result, fix the TODOs, and commit!
 
 ### Common Flags (init / new / minimal)
 
-- `--yes` or `-y` — Skip the interactive wizard and overwrite existing files (same as `--force`).
+- `--yes` or `-y` — Runs non-interactively / skips the wizard (use `--force` to overwrite agentinit-managed files).
 - `--minimal` — Create only the 4 core files (AGENTS.md, CLAUDE.md, and docs).
 - `--detect` — Auto-detect stack and commands from package files (e.g., `package.json`, `pyproject.toml`).
 - `--purpose "<text>"` — Prefill the project purpose non-interactively.
