@@ -624,9 +624,10 @@ def cmd_new(args):
 
 
 def cmd_init(args):
-    # --yes disables the interactive wizard even when called directly.
+    # --yes disables the interactive wizard and implies --force.
     if getattr(args, "yes", False):
         args.prompt = False
+        args.force = True
 
     dest = os.path.abspath(".")
 
@@ -986,6 +987,255 @@ def cmd_status(args):
             sys.exit(0)
 
 
+# ---------------------------------------------------------------------------
+# agentinit add — modular resource installer
+# ---------------------------------------------------------------------------
+
+ADD_TEMPLATE_DIR = os.path.join(TEMPLATE_DIR, "add")
+
+# Registry of resource types.  Each entry maps to:
+#   template_src  — path inside ADD_TEMPLATE_DIR (may contain {name})
+#   dest_pattern  — path under project root     (may contain {name})
+#   agents_section— heading to append a reference under in AGENTS.md (or None)
+#   needs_name    — whether the "name" positional arg is required
+#   is_dir        — whether the resource is a directory tree (skills)
+
+_ADD_HANDLERS = {
+    "skill": {
+        "template_src": os.path.join("skills", "{name}"),
+        "dest_pattern": os.path.join(".agents", "skills", "{name}"),
+        "dest_pattern_alt": os.path.join(".claude", "skills", "{name}"),
+        "agents_section": None,
+        "needs_name": True,
+        "is_dir": True,
+    },
+    "mcp": {
+        "template_src": os.path.join("mcp", "{name}.md"),
+        "dest_pattern": os.path.join(".agents", "mcp-{name}.md"),
+        "agents_section": "## Tools & Integrations",
+        "needs_name": True,
+        "is_dir": False,
+    },
+    "security": {
+        "template_src": "security.md",
+        "dest_pattern": os.path.join(".agents", "security.md"),
+        "agents_section": "## Rules & Guardrails",
+        "needs_name": False,
+        "is_dir": False,
+    },
+    "soul": {
+        "template_src": "soul.md",
+        "dest_pattern": os.path.join(".agents", "soul.md"),
+        "agents_section": "## Personality",
+        "needs_name": False,
+        "is_dir": False,
+    },
+}
+
+
+def _list_available(resource_type):
+    """List available items for a resource type."""
+    handler = _ADD_HANDLERS[resource_type]
+    src_pattern = handler["template_src"]
+
+    if handler["needs_name"]:
+        # List entries in the parent directory of the template.
+        parent = os.path.join(ADD_TEMPLATE_DIR, os.path.dirname(src_pattern))
+        if not os.path.isdir(parent):
+            return []
+        entries = sorted(os.listdir(parent))
+        # Filter to actual template items.
+        if handler["is_dir"]:
+            return [e for e in entries if os.path.isdir(os.path.join(parent, e))]
+        return [
+            os.path.splitext(e)[0]
+            for e in entries
+            if os.path.isfile(os.path.join(parent, e)) and e.endswith(".md")
+        ]
+    # Single-file resources — just check existence.
+    src = os.path.join(ADD_TEMPLATE_DIR, src_pattern)
+    if os.path.isfile(src):
+        return [os.path.splitext(os.path.basename(src_pattern))[0]]
+    return []
+
+
+def _print_add_list(resource_type):
+    """Print a formatted table of available resources."""
+    items = _list_available(resource_type)
+    if not items:
+        print(f"  No {resource_type} templates available.")
+        return
+    print(f"\n  {_c('Available ' + resource_type + ' resources:', _BOLD)}")
+    for item in items:
+        # Try to read a description from YAML frontmatter or first heading.
+        handler = _ADD_HANDLERS[resource_type]
+        src_pattern = handler["template_src"]
+        if handler["needs_name"]:
+            src_path = os.path.join(ADD_TEMPLATE_DIR, src_pattern.replace("{name}", item))
+        else:
+            src_path = os.path.join(ADD_TEMPLATE_DIR, src_pattern)
+        if handler["is_dir"]:
+            # Look for SKILL.md inside the directory.
+            src_path = os.path.join(src_path, "SKILL.md")
+        desc = ""
+        if os.path.isfile(src_path):
+            try:
+                with open(src_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("description:"):
+                            desc = line.split(":", 1)[1].strip()
+                            break
+                        if line.startswith("# ") and not desc:
+                            desc = line[2:].strip()
+            except OSError:
+                pass
+        if desc:
+            print(f"    {_c(item, _CYAN):30s} {desc}")
+        else:
+            print(f"    {_c(item, _CYAN)}")
+
+
+def _append_agents_section(dest, section_heading, reference_line):
+    """Append a reference line under a section in AGENTS.md, creating it if needed."""
+    agents_path = os.path.join(dest, "AGENTS.md")
+    if not os.path.isfile(agents_path):
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + " AGENTS.md not found. Run 'agentinit init' first, or create it manually.",
+            file=sys.stderr,
+        )
+        return
+
+    with open(agents_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Don't duplicate the reference.
+    if reference_line.strip() in content:
+        return
+
+    if section_heading in content:
+        # Append under existing section.
+        content = content.replace(
+            section_heading,
+            f"{section_heading}\n\n{reference_line}",
+        )
+    else:
+        # Append new section at the end.
+        content = content.rstrip("\n") + f"\n\n{section_heading}\n\n{reference_line}\n"
+
+    with open(agents_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+
+
+def cmd_add(args):
+    """Add a modular agentic resource to the current project."""
+    resource_type = args.type
+    handler = _ADD_HANDLERS[resource_type]
+    dest = os.path.abspath(".")
+
+    # --list: show available resources and exit.
+    if args.list:
+        _print_add_list(resource_type)
+        return
+
+    # Validate name requirement.
+    name = args.name
+    if handler["needs_name"] and not name:
+        available = _list_available(resource_type)
+        if available:
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" '{resource_type}' requires a name. Available: {', '.join(available)}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" '{resource_type}' requires a name.",
+                file=sys.stderr,
+            )
+        sys.exit(1)
+
+    # Resolve source path.
+    if handler["needs_name"]:
+        src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"].replace("{name}", name))
+    else:
+        src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"])
+
+    if handler["is_dir"]:
+        if not os.path.isdir(src):
+            available = _list_available(resource_type)
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" unknown {resource_type}: '{name}'."
+                + (f" Available: {', '.join(available)}" if available else ""),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    else:
+        if not os.path.isfile(src):
+            available = _list_available(resource_type)
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" unknown {resource_type}: '{name}'."
+                + (f" Available: {', '.join(available)}" if available else ""),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Resolve destination path.
+    if handler["needs_name"]:
+        dst = os.path.join(dest, handler["dest_pattern"].replace("{name}", name))
+    else:
+        dst = os.path.join(dest, handler["dest_pattern"])
+
+    # For skills, fall back to .claude/skills/ if .agents/ doesn't exist.
+    if resource_type == "skill":
+        alt = handler.get("dest_pattern_alt")
+        alt_dst = os.path.join(dest, alt.replace("{name}", name)) if alt else None
+        if not os.path.isdir(os.path.join(dest, ".agents")):
+            dst = alt_dst or dst
+        # Check both locations for existence.
+        elif alt_dst and os.path.exists(alt_dst) and not os.path.exists(dst):
+            dst = alt_dst
+
+    # Check if target already exists.
+    if os.path.exists(dst) and not args.force:
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + f" {os.path.relpath(dst, dest)} already exists. Use --force to overwrite.",
+            file=sys.stderr,
+        )
+        return
+
+    # Copy.
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if handler["is_dir"]:
+        if os.path.exists(dst) and args.force:
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+    else:
+        shutil.copy2(src, dst)
+
+    # Replace {{NAME}} placeholder in soul template.
+    if resource_type == "soul" and name:
+        with open(dst, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace("{{NAME}}", name)
+        with open(dst, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content)
+
+    rel_dst = os.path.relpath(dst, dest)
+    print(f"{_c('Added', _GREEN + _BOLD)} {resource_type}: {rel_dst}")
+
+    # Append reference in AGENTS.md if applicable.
+    if handler["agents_section"]:
+        reference = f"- `{rel_dst}`"
+        _append_agents_section(dest, handler["agents_section"], reference)
+        print(f"  Updated AGENTS.md ({handler['agents_section']})")
+
+
 def cmd_lint(args):
     """Run contextlint on the current directory (or --root)."""
     from agentinit.contextlint_adapter import run_contextlint
@@ -1002,7 +1252,7 @@ def cmd_lint(args):
     sys.exit(run_contextlint(argv))
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(
         prog="agentinit",
         description="Scaffold agent context files into a project.",
@@ -1046,7 +1296,7 @@ def main():
         "init", help="Add missing agent context files to the current directory."
     )
     p_init.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard."
+        "--yes", "-y", action="store_true", help="Skip interactive wizard and overwrite existing files (alias for --force)."
     )
     p_init.add_argument(
         "--force",
@@ -1071,7 +1321,7 @@ def main():
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
     p_minimal.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard."
+        "--yes", "-y", action="store_true", help="Skip interactive wizard and overwrite existing files (alias for --force)."
     )
     p_minimal.add_argument(
         "--force", action="store_true", help="Overwrite existing agentinit files."
@@ -1118,6 +1368,21 @@ def main():
         "--minimal", action="store_true", help="Check only the minimal core files."
     )
 
+    # agentinit add
+    p_add = sub.add_parser("add", help="Add modular agentic resources.")
+    p_add.add_argument(
+        "type",
+        choices=sorted(_ADD_HANDLERS.keys()),
+        help="Resource type to add.",
+    )
+    p_add.add_argument("name", nargs="?", default=None, help="Resource name.")
+    p_add.add_argument(
+        "--list", action="store_true", help="List available resources of this type."
+    )
+    p_add.add_argument(
+        "--force", action="store_true", help="Overwrite if the resource already exists."
+    )
+
     # agentinit lint
     p_lint = sub.add_parser(
         "lint",
@@ -1147,6 +1412,11 @@ def main():
         help="Repository root to lint (default: current directory).",
     )
 
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.command is None:
@@ -1171,6 +1441,8 @@ def main():
         cmd_remove(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "add":
+        cmd_add(args)
     elif args.command == "lint":
         cmd_lint(args)
     else:

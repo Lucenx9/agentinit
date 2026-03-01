@@ -433,6 +433,38 @@ class TestCmdInit:
         assert not args.prompt
         assert (tmp_path / "AGENTS.md").exists()
 
+    def test_yes_acts_as_force(self, tmp_path, monkeypatch):
+        """--yes implies --force and overwrites existing files."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "AGENTS.md").write_text("old content")
+        parser = cli.build_parser()
+        args = parser.parse_args(["init", "--yes"])
+        
+        # Test the direct mapping in argparse
+        assert args.yes is True
+        
+        # Test behavior inside cmd_init
+        cli.cmd_init(args)
+        assert "old content" not in (tmp_path / "AGENTS.md").read_text()
+        assert args.force is True
+        assert args.prompt is False
+
+    def test_y_alias_acts_as_force(self, tmp_path, monkeypatch):
+        """-y implies --force via argparse and cmd_init."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "AGENTS.md").write_text("old content")
+        parser = cli.build_parser()
+        args = parser.parse_args(["init", "-y"])
+        
+        # Test the alias mapping in argparse
+        assert args.yes is True
+        
+        # Test behavior inside cmd_init
+        cli.cmd_init(args)
+        assert "old content" not in (tmp_path / "AGENTS.md").read_text()
+        assert args.force is True
+        assert args.prompt is False
+
 
 # ---------------------------------------------------------------------------
 # cmd_minimal (alias for init --minimal)
@@ -1082,3 +1114,66 @@ class TestCmdLint:
         assert "file_sizes" in data
         assert isinstance(data["diagnostics"], list)
         assert isinstance(data["summary"]["total"], int)
+
+
+# ---------------------------------------------------------------------------
+# cmd_add
+# ---------------------------------------------------------------------------
+
+
+def make_add_args(**kwargs):
+    defaults = {"type": "skill", "name": "code-reviewer", "list": False, "force": False}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+class TestCmdAdd:
+    def test_add_skill_fallback_dedup(self, tmp_path, monkeypatch, capsys):
+        """add skill fallback/dedup works when a skill exists in .claude/skills/ but .agents/ exists too."""
+        monkeypatch.chdir(tmp_path)
+        # Create .agents dir
+        (tmp_path / ".agents").mkdir()
+        # Create existing skill in .claude
+        skill_dir = tmp_path / ".claude" / "skills" / "code-reviewer"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("existing skill")
+
+        args = make_add_args()
+        cli.cmd_add(args)
+        
+        out = capsys.readouterr().err
+        assert "already exists" in out
+        
+        # ensure it didn't create in .agents/
+        assert not (tmp_path / ".agents" / "skills" / "code-reviewer").exists()
+
+    def test_add_mcp_github_updates_agents_md_once(self, tmp_path, monkeypatch):
+        """add mcp github updates AGENTS.md with a link only once."""
+        monkeypatch.chdir(tmp_path)
+        # Init base structure
+        cli.cmd_init(make_init_args())
+        
+        # Add mcp github
+        args = make_add_args(type="mcp", name="github")
+        cli.cmd_add(args)
+        
+        # Read content
+        content1 = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        assert "- `.agents/mcp-github.md`" in content1
+        
+        # Count occurrences
+        count1 = content1.count("- `.agents/mcp-github.md`")
+        assert count1 == 1
+
+        # Delete the created file to force it to run again
+        (tmp_path / ".agents" / "mcp-github.md").unlink()
+        
+        # Add mcp github again
+        cli.cmd_add(args)
+        
+        # Read content again
+        content2 = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        count2 = content2.count("- `.agents/mcp-github.md`")
+        
+        # Still only 1
+        assert count2 == 1

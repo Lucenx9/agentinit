@@ -154,6 +154,39 @@ agentinit minimal
 
 Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`, `--detect`).
 
+### Add resources (skills, MCP, security, soul)
+
+`agentinit add` lets you inject modular agentic resources like skills, MCP configurations, security rules, and agent personas into your project.
+
+```sh
+# View available resources
+agentinit add --list
+
+# Add specific resources
+agentinit add skill code-reviewer
+agentinit add mcp github
+agentinit add security
+agentinit add soul "Lucenx"
+```
+
+What you get (example):
+
+```text
+your-project/
+├── .agents/
+│   ├── security.md
+│   ├── soul.md
+│   ├── mcp-github.md
+│   └── skills/
+│       └── code-reviewer/
+│           └── SKILL.md
+└── AGENTS.md              # automatically updated with links to the new resources
+```
+
+Adding resources is idempotent: running the command multiple times won't duplicate files or `AGENTS.md` entries. If a resource file already exists, it is skipped safely. You can use `--force` to overwrite existing resource files.
+
+**Skill Destinations:** For compatibility, skills are copied to `.agents/skills/<name>/` if the `.agents/` folder exists in your project. Otherwise, they fall back to `.claude/skills/<name>/`. If a skill is already installed in either location, it will be detected and skipped to avoid duplicates.
+
 ### Token discipline (status)
 
 `agentinit status` acts as a guardrail against context bloat. It verifies file presence and completeness (checks for `TBD`), while enforcing line budgets and link integrity.
