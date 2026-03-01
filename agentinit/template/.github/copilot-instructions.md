@@ -1,6 +1,7 @@
 # Copilot Instructions
 
 > **🚨 CORE MANDATES:**
+>
 > - **YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the exact start of every session. Do not ask for permission.
 > - **YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` autonomously before ending a task or session.
 > - **YOU MUST ALWAYS** log new tools, dependencies, or conventions in `docs/DECISIONS.md`.
