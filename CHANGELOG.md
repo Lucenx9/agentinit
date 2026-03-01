@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2
+
+- Adopt 2026 agentic best practices for templates and routing.
+- Add `llms.txt` standard to template and core managed files.
+- Hardened agent mandates with imperative language (MUST/ALWAYS/NEVER).
+- AI-optimized docs templates (STATE.md, TODO.md) with checkbox tasks and lessons learned.
+- Update `repo-map` with explicit domain boundaries.
+- Support `llms.txt` in all `init` and `new` commands (including minimal).
+
 ## 0.3.1
 
 - New `agentinit add` command for injecting resources (soul, skill, mcp, security) into existing projects.
