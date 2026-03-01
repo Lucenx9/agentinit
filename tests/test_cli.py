@@ -1049,7 +1049,7 @@ class TestDetectManifests:
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
 
         try:
-            import tomllib
+            import tomllib  # noqa: F401
         except ImportError:
             # If no tomllib, it should not fail but fields remain as placeholders
             assert "Python" not in content

@@ -75,6 +75,7 @@ MANAGED_FILES = [
     "AGENTS.md",
     "CLAUDE.md",
     "GEMINI.md",
+    "llms.txt",
     ".gitignore",
     "docs/PROJECT.md",
     "docs/CONVENTIONS.md",
@@ -92,6 +93,7 @@ MANAGED_FILES = [
 MINIMAL_MANAGED_FILES = [
     "AGENTS.md",
     "CLAUDE.md",
+    "llms.txt",
     "docs/PROJECT.md",
     "docs/CONVENTIONS.md",
 ]
@@ -103,6 +105,7 @@ REMOVABLE_FILES = [
     "AGENTS.md",
     "CLAUDE.md",
     "GEMINI.md",
+    "llms.txt",
     "docs/PROJECT.md",
     "docs/CONVENTIONS.md",
     "docs/TODO.md",
@@ -342,7 +345,6 @@ def _run_detect(dest, project_path, content):
                 pkg = cargo_data.get("package")
                 if not isinstance(pkg, dict):
                     pkg = {}
-                name = pkg.get("name", "")
                 edition = pkg.get("edition", "")
 
                 lang_str = "- **Language(s):** Rust"

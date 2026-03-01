@@ -5,7 +5,7 @@ description: This skill should be used when the user wants to "review code", "ch
 
 # Code Reviewer
 
-Perform a deep code review on the staged or specified changes. Follow the checklist below systematically.
+You **MUST** perform a deep code review on the staged or specified changes. You **MUST ALWAYS** evaluate the code against every single item in the checklist below before generating your response.
 
 ## Review Checklist
 
@@ -36,7 +36,7 @@ Perform a deep code review on the staged or specified changes. Follow the checkl
 
 ## Output Format
 
-For each finding, report:
+You **MUST** strictly adhere to the following output format without adding conversational filler. For each finding, report:
 
 ```text
 [severity] file:line — description

@@ -20,7 +20,11 @@
 
 - (Link to `DECISIONS.md` entry or one-line summary)
 
+## Lessons Learned
+
+- (Add any gotchas, workarounds, or implicit knowledge discovered during the last session)
+
 ## Last Updated
 
-<!-- Update this date whenever you modify this file. -->
+<!-- Agents: Update this using `date +"%Y-%m-%d %H:%M:%S"` -->
 YYYY-MM-DD

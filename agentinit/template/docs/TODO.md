@@ -2,17 +2,17 @@
 
 ## In Progress
 
-- (none)
+- [ ] (Active task description)
 
 ## Next
 
-- Fill `docs/PROJECT.md` with real stack and command details.
-- Fill `docs/CONVENTIONS.md` with concrete team standards.
+- [ ] Fill `docs/PROJECT.md` with real stack and command details.
+- [ ] Fill `docs/CONVENTIONS.md` with concrete team standards.
 
 ## Blocked
 
-- (none)
+- [ ] (Reason for blockage)
 
 ## Done
 
-- Scaffolded agent router and docs templates.
+- [x] Scaffolded agent router and docs templates.

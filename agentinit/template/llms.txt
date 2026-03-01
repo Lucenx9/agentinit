@@ -1,0 +1,20 @@
+# Project Overview
+(not configured - run init to set project name and description)
+
+# Important Context Files
+- Instructions and Rules: [AGENTS.md](AGENTS.md)
+- Stack and Architecture: [docs/PROJECT.md](docs/PROJECT.md)
+- Development Conventions: [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
+- Current State & Focus: [docs/STATE.md](docs/STATE.md)
+- Pending Tasks: [docs/TODO.md](docs/TODO.md)
+- Architectural Log: [docs/DECISIONS.md](docs/DECISIONS.md)
+
+# Optional Tool-Specific Routing
+- Claude Code: [CLAUDE.md](CLAUDE.md)
+- Cursor: [.cursor/rules/project.mdc](.cursor/rules/project.mdc)
+- GitHub Copilot: [.github/copilot-instructions.md](.github/copilot-instructions.md)
+- Gemini: [GEMINI.md](GEMINI.md)
+
+# AI Tooling Boundaries
+- DO NOT duplicate documentation; refer to the linked files above.
+- Follow the workflow mandated in AGENTS.md.

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json as _json
-import sys
 from pathlib import Path
 
 from agentinit._contextlint import __version__

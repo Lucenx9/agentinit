@@ -5,7 +5,7 @@ description: This skill should be used when the user wants to "write tests", "ad
 
 # Testing
 
-Analyze the specified code and generate or improve tests. Follow existing project patterns for test framework, naming, and file structure.
+You **MUST** analyze the specified code and generate or improve tests. You **MUST ALWAYS** follow existing project patterns for test framework, naming, and file structure.
 
 ## Approach
 
@@ -27,16 +27,16 @@ Analyze the specified code and generate or improve tests. Follow existing projec
 - Use realistic fixtures, not trivial data
 - Clean up side effects (DB, files, env vars)
 
-## Rules
+## Rules (YOU MUST NEVER VIOLATE THESE)
 
 - **Naming:** `test_<behavior>_<scenario>` (e.g., `test_login_rejects_expired_token`)
-- **No shared mutable state** between tests
-- **No sleep/polling** — use deterministic waits or mocks
-- **Assert behavior, not implementation** — avoid testing private methods
-- **Keep tests fast** — unit tests under 100ms each
+- **YOU MUST NEVER** introduce shared mutable state between tests.
+- **YOU MUST NEVER** use sleep/polling — use deterministic waits or mocks.
+- **Assert behavior, not implementation** — avoid testing private methods.
+- **Keep tests fast** — unit tests under 100ms each.
 
 ## Output
 
-- Place tests next to source or in `tests/` following project convention
-- Include a brief comment explaining non-obvious test setups
-- Run the test suite and report results
+- Place tests next to source or in `tests/` following project convention.
+- Include a brief comment explaining non-obvious test setups.
+- You **MUST** run the test suite and report results after writing the tests.

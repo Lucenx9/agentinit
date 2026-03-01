@@ -5,7 +5,7 @@ description: This skill should be used when the user wants to "review frontend c
 
 # Frontend Reviewer
 
-Perform a frontend-specific code review on UI components and pages. Cover accessibility, performance, and UX patterns.
+You **MUST** perform a frontend-specific code review on UI components and pages. You **MUST ALWAYS** cover accessibility, performance, and UX patterns according to the checklist below.
 
 ## Review Checklist
 
@@ -39,6 +39,8 @@ Perform a frontend-specific code review on UI components and pages. Cover access
 - No inline styles unless truly dynamic
 
 ## Output Format
+
+You **MUST** strictly adhere to the following output format without adding conversational filler.
 
 ```text
 [severity] file:line — description
