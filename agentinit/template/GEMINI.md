@@ -11,6 +11,6 @@
 
 **Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` contain `TBD`, fill them concisely (facts-only) before starting other work.
 
-**Maintenance:** If you introduce or change commands, conventions, or decisions, update the corresponding docs in the same PR. Update `docs/STATE.md` at the end of each session.
+**Maintenance:** If you introduce or change commands, conventions, or decisions, update the corresponding docs in the same PR. Update `docs/STATE.md` only if priorities/next steps changed.
 
 Do not duplicate policy text here. Use this file purely as an index to the deeper context in `docs/`.

@@ -20,6 +20,8 @@
 - Ask for clarification / confirm assumptions before risky changes.
 - Read the linked files in `docs/` for deeper context.
 
+**Resume:** At session start, read `docs/STATE.md` + `docs/TODO.md` + `docs/DECISIONS.md`.
+
 **Context files (load when relevant):**
 
 - `docs/PROJECT.md` — Scope, stack, layout, constraints.
