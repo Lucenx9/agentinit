@@ -50,6 +50,8 @@ jobs:
           agentinit minimal --help
           agentinit remove --dry-run
 
+          agentinit status --check
+
           echo "keep" > KEEP_ME.txt
           agentinit remove --force
           test -f KEEP_ME.txt && echo "KEEP_ME.txt preserved"
@@ -75,6 +77,9 @@ jobs:
           agentinit minimal --help
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           agentinit remove --dry-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          agentinit status --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           "keep" | Out-File KEEP_ME.txt

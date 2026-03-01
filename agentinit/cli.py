@@ -71,6 +71,10 @@ MANAGED_FILES = [
     "docs/STATE.md",
     ".cursor/rules/project.mdc",
     ".github/copilot-instructions.md",
+    ".claude/rules/coding-style.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/repo-map.md",
+    ".contextlintrc.json",
 ]
 
 MINIMAL_MANAGED_FILES = [
@@ -94,6 +98,10 @@ REMOVABLE_FILES = [
     "docs/STATE.md",
     ".cursor/rules/project.mdc",
     ".github/copilot-instructions.md",
+    ".claude/rules/coding-style.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/repo-map.md",
+    ".contextlintrc.json",
 ]
 
 # Directories to clean up if empty after removal (deepest first).
@@ -101,6 +109,8 @@ CLEANUP_DIRS = [
     "docs",
     os.path.join(".cursor", "rules"),
     ".cursor",
+    os.path.join(".claude", "rules"),
+    ".claude",
 ]
 
 
@@ -220,7 +230,7 @@ def _run_detect(dest, project_path, content):
             with open(pkg_json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            stack_updates["- **Runtime:** TBD"] = "- **Runtime:** Node.js"
+            stack_updates["- **Runtime:** (not configured)"] = "- **Runtime:** Node.js"
 
             pm = str(data.get("packageManager") or "")
             manager = "npm"
@@ -248,22 +258,22 @@ def _run_detect(dest, project_path, content):
             )
 
             if "setup" in scripts:
-                cmd_updates["- Setup: TBD"] = f"- Setup: {run_prefix}setup"
+                cmd_updates["- Setup: (not configured)"] = f"- Setup: {run_prefix}setup"
             else:
-                cmd_updates["- Setup: TBD"] = f"- Setup: {manager} install"
+                cmd_updates["- Setup: (not configured)"] = f"- Setup: {manager} install"
 
             if "build" in scripts:
-                cmd_updates["- Build: TBD"] = f"- Build: {run_prefix}build"
+                cmd_updates["- Build: (not configured)"] = f"- Build: {run_prefix}build"
             if "test" in scripts:
-                cmd_updates["- Test: TBD"] = f"- Test: {run_prefix}test"
+                cmd_updates["- Test: (not configured)"] = f"- Test: {run_prefix}test"
             if "lint" in scripts:
-                cmd_updates["- Lint/Format: TBD"] = f"- Lint/Format: {run_prefix}lint"
+                cmd_updates["- Lint/Format: (not configured)"] = f"- Lint/Format: {run_prefix}lint"
             elif "format" in scripts:
-                cmd_updates["- Lint/Format: TBD"] = f"- Lint/Format: {run_prefix}format"
+                cmd_updates["- Lint/Format: (not configured)"] = f"- Lint/Format: {run_prefix}format"
             if "dev" in scripts:
-                cmd_updates["- Run: TBD"] = f"- Run: {run_prefix}dev"
+                cmd_updates["- Run: (not configured)"] = f"- Run: {run_prefix}dev"
             elif "start" in scripts:
-                cmd_updates["- Run: TBD"] = f"- Run: {run_prefix}start"
+                cmd_updates["- Run: (not configured)"] = f"- Run: {run_prefix}start"
         except Exception:
             pass
 
@@ -279,14 +289,14 @@ def _run_detect(dest, project_path, content):
                         go_version = line.split(" ")[1]
                         break
 
-            stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Go"
+            stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Go"
             if go_version:
-                stack_updates["- **Runtime:** TBD"] = f"- **Runtime:** Go {go_version}"
+                stack_updates["- **Runtime:** (not configured)"] = f"- **Runtime:** Go {go_version}"
 
-            cmd_updates["- Setup: TBD"] = "- Setup: go mod download"
-            cmd_updates["- Build: TBD"] = "- Build: go build ./..."
-            cmd_updates["- Test: TBD"] = "- Test: go test ./..."
-            cmd_updates["- Run: TBD"] = "- Run: go run ."
+            cmd_updates["- Setup: (not configured)"] = "- Setup: go mod download"
+            cmd_updates["- Build: (not configured)"] = "- Build: go build ./..."
+            cmd_updates["- Test: (not configured)"] = "- Test: go test ./..."
+            cmd_updates["- Run: (not configured)"] = "- Run: go run ."
         except Exception:
             pass
 
@@ -313,15 +323,15 @@ def _run_detect(dest, project_path, content):
                 lang_str = "- **Language(s):** Rust"
                 if edition:
                     lang_str += f" ({edition})"
-                stack_updates["- **Language(s):** TBD"] = lang_str
+                stack_updates["- **Language(s):** (not configured)"] = lang_str
 
-                cmd_updates["- Setup: TBD"] = "- Setup: cargo fetch"
-                cmd_updates["- Build: TBD"] = "- Build: cargo build"
-                cmd_updates["- Test: TBD"] = "- Test: cargo test"
-                cmd_updates["- Lint/Format: TBD"] = (
+                cmd_updates["- Setup: (not configured)"] = "- Setup: cargo fetch"
+                cmd_updates["- Build: (not configured)"] = "- Build: cargo build"
+                cmd_updates["- Test: (not configured)"] = "- Test: cargo test"
+                cmd_updates["- Lint/Format: (not configured)"] = (
                     "- Lint/Format: cargo fmt && cargo clippy"
                 )
-                cmd_updates["- Run: TBD"] = "- Run: cargo run"
+                cmd_updates["- Run: (not configured)"] = "- Run: cargo run"
             except Exception:
                 pass
 
@@ -347,23 +357,23 @@ def _run_detect(dest, project_path, content):
                     project = {}
                 requires_python = project.get("requires-python", "")
 
-                stack_updates["- **Language(s):** TBD"] = "- **Language(s):** Python"
+                stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Python"
                 if requires_python:
-                    stack_updates["- **Runtime:** TBD"] = (
+                    stack_updates["- **Runtime:** (not configured)"] = (
                         f"- **Runtime:** Python {requires_python}"
                     )
 
                 if manager == "poetry":
-                    cmd_updates["- Setup: TBD"] = "- Setup: poetry install"
-                    cmd_updates["- Run: TBD"] = "- Run: poetry run python"
+                    cmd_updates["- Setup: (not configured)"] = "- Setup: poetry install"
+                    cmd_updates["- Run: (not configured)"] = "- Run: poetry run python"
                 elif manager == "uv":
-                    cmd_updates["- Setup: TBD"] = "- Setup: uv sync"
-                    cmd_updates["- Run: TBD"] = "- Run: uv run python"
+                    cmd_updates["- Setup: (not configured)"] = "- Setup: uv sync"
+                    cmd_updates["- Run: (not configured)"] = "- Run: uv run python"
                 elif manager == "pdm":
-                    cmd_updates["- Setup: TBD"] = "- Setup: pdm install"
-                    cmd_updates["- Run: TBD"] = "- Run: pdm run python"
+                    cmd_updates["- Setup: (not configured)"] = "- Setup: pdm install"
+                    cmd_updates["- Run: (not configured)"] = "- Run: pdm run python"
                 else:
-                    cmd_updates["- Setup: TBD"] = "- Setup: pip install -e ."
+                    cmd_updates["- Setup: (not configured)"] = "- Setup: pip install -e ."
             except Exception:
                 pass
 
@@ -399,7 +409,7 @@ def apply_updates(dest, args):
             print("\nAborted.")
             sys.exit(130)
     else:
-        purpose = args.purpose or "TBD"
+        purpose = args.purpose or ""
         env = ""
         constraints = ""
         commands = ""
@@ -417,10 +427,7 @@ def apply_updates(dest, args):
 
         if purpose:
             content = content.replace(
-                "TBD (Describe what this project is for and expected outcomes)",
-                purpose,
-            ).replace(
-                "Describe what this project is for, who it serves, and the expected outcomes.",
+                "Describe what this project is for and expected outcomes.",
                 purpose,
             )
 
@@ -435,12 +442,12 @@ def apply_updates(dest, args):
                     f"- {c.strip()}" for c in commands.split(",") if c.strip()
                 )
                 old_commands = (
-                    "## Commands (TBD)\n\n"
-                    "- Setup: TBD\n"
-                    "- Build: TBD\n"
-                    "- Test: TBD\n"
-                    "- Lint/Format: TBD\n"
-                    "- Run: TBD"
+                    "## Commands\n\n"
+                    "- Setup: (not configured)\n"
+                    "- Build: (not configured)\n"
+                    "- Test: (not configured)\n"
+                    "- Lint/Format: (not configured)\n"
+                    "- Run: (not configured)"
                 )
                 content = content.replace(old_commands, f"## Commands\n\n{cmds_list}")
             if constraints:
@@ -914,8 +921,38 @@ def cmd_status(args):
                 missing.append(rel)
                 print(f"  {_c('x', _RED)} {rel} {_c('(unreadable)', _RED)}")
 
+    # --- Context checks (contextlint) ---
+    contextlint_hard = False
+    try:
+        from agentinit.contextlint_adapter import get_checks_module
+
+        checks_mod = get_checks_module()
+        lint_result = checks_mod.run_checks(
+            root=__import__("pathlib").Path(dest),
+        )
+        cl_hards = [d for d in lint_result.diagnostics if d.hard]
+        cl_softs = [d for d in lint_result.diagnostics if not d.hard]
+        if lint_result.diagnostics:
+            print(f"\n{_c('Context checks (contextlint):', _BOLD)}")
+            for d in lint_result.diagnostics:
+                prefix = _c("ERROR", _RED) if d.hard else _c("warn", _YELLOW)
+                loc = f"{d.path}:{d.lineno}" if d.lineno else d.path
+                print(f"  {prefix}  {loc}: {d.message}")
+            offenders = checks_mod.top_offenders(lint_result)
+            if offenders:
+                print(f"\n  {_c('Top offenders by size:', _YELLOW)}")
+                for path, size in offenders:
+                    print(f"    {path}: {size} lines")
+            print(
+                f"\n  contextlint: {len(cl_hards)} error(s), {len(cl_softs)} warning(s)"
+            )
+            if cl_hards:
+                contextlint_hard = True
+    except Exception:
+        pass
+
     print()
-    if missing or tbd or hard_violations or broken_refs:
+    if missing or tbd or hard_violations or broken_refs or contextlint_hard:
         issues = []
         if missing:
             issues.append(f"{len(missing)} missing")
@@ -925,6 +962,8 @@ def cmd_status(args):
             issues.append(f"{len(hard_violations)} too large")
         if broken_refs:
             issues.append(f"{len(broken_refs)} broken refs")
+        if contextlint_hard:
+            issues.append("contextlint errors")
 
         print(f"{_c('Top offenders:', _YELLOW)}")
         if file_sizes:
@@ -945,6 +984,22 @@ def cmd_status(args):
         )
         if args.check:
             sys.exit(0)
+
+
+def cmd_lint(args):
+    """Run contextlint on the current directory (or --root)."""
+    from agentinit.contextlint_adapter import run_contextlint
+
+    argv = []
+    if args.root:
+        argv.extend(["--root", args.root])
+    if args.config:
+        argv.extend(["--config", args.config])
+    if args.format:
+        argv.extend(["--format", args.format])
+    if args.no_dup:
+        argv.append("--no-dup")
+    sys.exit(run_contextlint(argv))
 
 
 def main():
@@ -1063,6 +1118,35 @@ def main():
         "--minimal", action="store_true", help="Check only the minimal core files."
     )
 
+    # agentinit lint
+    p_lint = sub.add_parser(
+        "lint",
+        help="Run contextlint checks on agent context files.",
+    )
+    p_lint.add_argument(
+        "--config",
+        metavar="PATH",
+        default=None,
+        help="Path to .contextlintrc.json config file.",
+    )
+    p_lint.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text).",
+    )
+    p_lint.add_argument(
+        "--no-dup",
+        action="store_true",
+        default=False,
+        help="Disable duplicate-block detection.",
+    )
+    p_lint.add_argument(
+        "--root",
+        default=None,
+        help="Repository root to lint (default: current directory).",
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -1087,6 +1171,8 @@ def main():
         cmd_remove(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "lint":
+        cmd_lint(args)
     else:
         parser.print_help()
         sys.exit(1)

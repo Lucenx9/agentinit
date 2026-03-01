@@ -9,11 +9,11 @@
 
 **Commands:**
 
-- Setup: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
-- Run: TBD
+- Setup: (not configured)
+- Build: (not configured)
+- Test: (not configured)
+- Lint/Format: (not configured)
+- Run: (not configured)
 
 > If you introduce a tool or dependency (pytest, ruff, etc.), record it in `docs/DECISIONS.md` and update `docs/PROJECT.md` commands in the same PR.
 
@@ -35,6 +35,7 @@
 - `docs/TODO.md` — Active work, plans, assumptions.
 - `docs/DECISIONS.md` — Past architectural choices and rationale.
 - `docs/STATE.md` — Current focus, next steps, blockers (session handoff).
+- `.claude/rules/` — Modular coding rules (style, testing, repo layout).
 
 **Token discipline:**
 

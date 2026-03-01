@@ -1,6 +1,7 @@
 """Tests for agentinit.cli."""
 
 import argparse
+import json
 import os
 import sys
 
@@ -284,10 +285,9 @@ class TestCmdNew:
             "docs/PROJECT.md",
         ]
         content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
-        assert "Describe what this project is for" not in content
-        # It should keep TBD in PROJECT.md if no purpose provided
-        # Wait, the template has "Describe what this project is for, who it serves..." and we replace with TBD.
-        assert "TBD" in content
+        # No purpose provided → template placeholder text stays as-is
+        assert "Describe what this project is for and expected outcomes." in content
+        assert "TBD" not in content
 
     def test_minimal_with_purpose(self, tmp_path):
         args = make_args(
@@ -705,6 +705,8 @@ class TestCmdStatus:
         """Files containing TBD are flagged as incomplete."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
+        # Inject TBD manually (templates no longer contain TBD by default)
+        (tmp_path / "AGENTS.md").write_text("# Agents\n\nSetup: TBD\n", encoding="utf-8")
         cli.cmd_status(make_status_args())
         out = capsys.readouterr().out
         assert "incomplete" in out
@@ -906,6 +908,35 @@ class TestCmdStatus:
         assert "Broken reference" not in out
 
 
+class TestTemplatePackaging:
+    """Verify that all expected template files ship with the package."""
+
+    REQUIRED_TEMPLATES = [
+        ".claude/rules/coding-style.md",
+        ".claude/rules/testing.md",
+        ".claude/rules/repo-map.md",
+        ".contextlintrc.json",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/PROJECT.md",
+        "docs/CONVENTIONS.md",
+    ]
+
+    def test_template_files_exist(self):
+        for rel in self.REQUIRED_TEMPLATES:
+            path = os.path.join(cli.TEMPLATE_DIR, rel)
+            assert os.path.isfile(path), f"Template file missing: {rel}"
+
+    def test_new_templates_have_no_tbd(self):
+        """None of the shipped templates should contain the literal string TBD."""
+        for rel in cli.MANAGED_FILES:
+            path = os.path.join(cli.TEMPLATE_DIR, rel)
+            if not os.path.isfile(path):
+                continue
+            content = open(path, encoding="utf-8").read()
+            assert "TBD" not in content, f"Template {rel} still contains TBD"
+
+
 class TestDetectManifests:
     def test_detect_node(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -959,7 +990,7 @@ class TestDetectManifests:
         try:
             import tomllib
         except ImportError:
-            # If no tomllib, it should not fail but fields remain TBD
+            # If no tomllib, it should not fail but fields remain as placeholders
             assert "Python" not in content
             return
 
@@ -975,5 +1006,79 @@ class TestDetectManifests:
         cli.apply_updates(str(tmp_path), args)
 
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
-        assert "- **Runtime:** TBD" in content
-        assert "- Setup: TBD" in content
+        assert "- **Runtime:** (not configured)" in content
+        assert "- Setup: (not configured)" in content
+
+
+# ---------------------------------------------------------------------------
+# cmd_lint
+# ---------------------------------------------------------------------------
+
+
+def make_lint_args(**kwargs):
+    defaults = {"config": None, "format": "text", "no_dup": False, "root": None}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+class TestCmdLint:
+    def _fill_tbd(self, root, files):
+        for rel in files:
+            path = root / rel
+            if path.is_file():
+                content = path.read_text(encoding="utf-8")
+                path.write_text(content.replace("TBD", "done"), encoding="utf-8")
+
+    def test_lint_clean_project_exits_0(self, tmp_path, monkeypatch):
+        """agentinit init → agentinit lint returns 0 on a clean project."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        # Rewrite AGENTS.md without broken refs
+        (tmp_path / "AGENTS.md").write_text(
+            "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
+        )
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_lint(make_lint_args())
+        assert exc.value.code == 0
+
+    def test_status_check_exits_1_on_broken_ref(self, tmp_path, monkeypatch, capsys):
+        """Inject broken ref in .claude/rules/, verify status --check exits 1."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        # Clean AGENTS.md of broken refs
+        (tmp_path / "AGENTS.md").write_text(
+            "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
+        )
+        # Inject broken ref into a rules file
+        rules_file = tmp_path / ".claude" / "rules" / "coding-style.md"
+        rules_file.write_text(
+            "# Style\n\nSee [missing](docs/NOPE.md) for details.\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "contextlint" in out.lower() or "ERROR" in out
+
+    def test_lint_format_json_valid(self, tmp_path, monkeypatch, capsys):
+        """agentinit lint --format json produces valid JSON with expected keys."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        (tmp_path / "AGENTS.md").write_text(
+            "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
+        )
+        # Flush init output before capturing lint output
+        capsys.readouterr()
+        with pytest.raises(SystemExit):
+            cli.cmd_lint(make_lint_args(format="json"))
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        assert "diagnostics" in data
+        assert "summary" in data
+        assert "file_sizes" in data
+        assert isinstance(data["diagnostics"], list)
+        assert isinstance(data["summary"]["total"], int)

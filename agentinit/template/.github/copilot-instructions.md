@@ -5,10 +5,10 @@
 
 **Commands:**
 
-- Setup: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
-- Run: TBD
+- Setup: (not configured)
+- Build: (not configured)
+- Test: (not configured)
+- Lint/Format: (not configured)
+- Run: (not configured)
 
 *Keep this file short; do not duplicate long guidance here. Route to `docs/` instead.*

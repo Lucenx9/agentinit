@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentinit"
-version = "0.2.9"
+version = "0.3.0"
 description = "Scaffold agent context files into a project."
 readme = "README.md"
 license = "MIT"
@@ -35,6 +35,8 @@ agentinit = [
     "template/.*",
     "template/.cursor/rules/*",
     "template/.github/*",
+    "template/.claude/rules/*",
+    "template/.contextlintrc.json",
 ]
 
 [dependency-groups]

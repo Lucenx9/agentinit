@@ -6,10 +6,11 @@
 2. Consult `docs/PROJECT.md` for scope, stack, layout, and constraints.
 3. Consult `docs/CONVENTIONS.md` for style, naming, testing, and git workflow.
 4. Log plans in `docs/TODO.md` and decisions in `docs/DECISIONS.md`.
+5. Review `.claude/rules/` for coding style, testing, and repo layout guidelines.
 
 **Resume:** At session start, read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` to pick up where the last session left off.
 
-**Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` contain `TBD`, fill them concisely (facts-only) before starting other work.
+**Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` contain unfilled placeholders, fill them concisely (facts-only) before starting other work.
 
 **Maintenance:** If you introduce or change commands, conventions, or decisions, update the corresponding docs in the same PR. Update `docs/STATE.md` only if priorities/next steps changed.
 

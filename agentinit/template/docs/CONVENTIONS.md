@@ -2,24 +2,24 @@
 
 ## Style
 
-- **Formatting standard:** TBD
+- **Formatting standard:** (not configured)
 - **Documentation tone/language:** English
-- **Commenting expectations:** TBD
+- **Commenting expectations:** (not configured)
 
 ## Naming
 
-- **Files/directories:** TBD
-- **Variables/functions/types:** TBD
-- **Branch naming:** TBD
+- **Files/directories:** (not configured)
+- **Variables/functions/types:** (not configured)
+- **Branch naming:** (not configured)
 
 ## Testing
 
-- **Required test types:** TBD
-- **Minimum coverage/gates:** TBD
-- **Test data/fixtures:** TBD
+- **Required test types:** (not configured)
+- **Minimum coverage/gates:** (not configured)
+- **Test data/fixtures:** (not configured)
 
 ## Git Workflow
 
-- **Commit message format:** TBD
-- **PR requirements/reviews:** TBD
-- **Merge strategy:** TBD
+- **Commit message format:** (not configured)
+- **PR requirements/reviews:** (not configured)
+- **Merge strategy:** (not configured)

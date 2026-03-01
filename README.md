@@ -184,6 +184,25 @@ Flags:
 - `--check` — exit non-zero on hard violations, broken refs, or missing/TBD files
 - `--minimal` — check only the core minimal files
 
+### Linting / CI
+
+`agentinit lint` runs [contextlint](https://github.com/Lucenx9/contextlint) checks (vendored, zero extra dependencies) on your agent context files — line budgets, broken refs, and cross-file duplication.
+
+```sh
+# Human-readable output
+agentinit lint
+
+# Machine-readable (CI-friendly)
+agentinit lint --format json
+```
+
+Flags:
+
+- `--format text|json` — output format (default: text)
+- `--config <path>` — path to `.contextlintrc.json` (default: auto-detect)
+- `--no-dup` — disable duplicate-block detection
+- `--root <path>` — repository root to lint (default: current directory)
+
 ### Remove agentinit files
 
 ```sh

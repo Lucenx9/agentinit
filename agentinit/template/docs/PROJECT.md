@@ -1,31 +1,31 @@
 # Project Context
 
-**Purpose:** TBD (Describe what this project is for and expected outcomes)
+**Purpose:** Describe what this project is for and expected outcomes.
 
 ## Stack
 
-- **Runtime:** TBD
-- **Language(s):** TBD
-- **Framework(s):** TBD
-- **Storage/Infra:** TBD
+- **Runtime:** (not configured)
+- **Language(s):** (not configured)
+- **Framework(s):** (not configured)
+- **Storage/Infra:** (not configured)
 
-## Commands (TBD)
+## Commands
 
-- Setup: TBD
-- Build: TBD
-- Test: TBD
-- Lint/Format: TBD
-- Run: TBD
+- Setup: (not configured)
+- Build: (not configured)
+- Test: (not configured)
+- Lint/Format: (not configured)
+- Run: (not configured)
 
 ## Layout
 
 - `AGENTS.md`: Primary router.
 - `docs/`: Source-of-truth context and memory files.
-- `src/`: TBD
-- `tests/`: TBD
+- `src/`: (describe your source layout)
+- `tests/`: (describe your test layout)
 
 ## Constraints
 
-- **Security:** TBD
-- **Performance:** TBD
-- **Deadlines/Limits:** TBD
+- **Security:** (document security constraints)
+- **Performance:** (document performance constraints)
+- **Deadlines/Limits:** (document deadline constraints)

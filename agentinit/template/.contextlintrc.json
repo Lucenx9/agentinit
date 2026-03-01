@@ -1,0 +1,16 @@
+{
+  "line_budget": {
+    "default_warn": 200,
+    "default_error": 300,
+    "router_warn": 50
+  },
+  "ignore": {
+    "paths": [
+      ".git/**", "node_modules/**", "dist/**", "build/**",
+      "venv/**", ".venv/**", "__pycache__/**"
+    ]
+  },
+  "discovery": {
+    "extra_globs": [".claude/rules/*.md"]
+  }
+}
