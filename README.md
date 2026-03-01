@@ -54,7 +54,7 @@ agentinit add security
 agentinit add soul "YourAgentName"
 ```
 
-*(Replace `"YourAgentName"` with any name you want for your agent persona.)*
+_(Replace `"YourAgentName"` with any name you want for your agent persona.)_
 
 This creates modular files and automatically links them in your `AGENTS.md`:
 
