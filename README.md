@@ -12,7 +12,7 @@ Works with Claude Code, Codex, Cursor, Copilot, and Gemini CLI.
 If you've ever had an agent guess your test command, ignore your style rules,
 or forget what the project does — `agentinit` creates a small set of **"router-first"** Markdown
 files. Top-level files stay tiny and route every agent to `docs/` for the real context,
-saving thousands of tokens every session.
+reducing repeated tokens across sessions.
 
 ## Save tokens fast (Minimal mode, 2 minutes)
 
@@ -27,7 +27,7 @@ agentinit new myproject --yes --minimal
 Then fill only `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
 Full mode also adds `docs/TODO.md`, `docs/DECISIONS.md`, and `docs/STATE.md`.
 
-Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
+Next time, tell your agent: follow the router for your tool (`CLAUDE.md` / `GEMINI.md` / Copilot / Cursor) → `AGENTS.md`.
 
 What you get:
 
@@ -124,7 +124,7 @@ Flags:
 - `--force` — overwrite agentinit files (including TODO/DECISIONS) if the directory already exists
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
-- `--prompt` — force the interactive wizard (even if stdin is not a TTY)
+- `--prompt` — force the interactive wizard (TTY required)
 - `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; leaves `TBD` if parsing fails). May apply safe conventional defaults for Setup (e.g. `npm install`) when manifests don't specify explicit scripts.
 
 ### Add to an existing project
@@ -143,7 +143,7 @@ Flags:
 - `--force` — overwrite existing agentinit files (including TODO/DECISIONS)
 - `--minimal` — create only core files (AGENTS.md, CLAUDE.md, docs/PROJECT.md, docs/CONVENTIONS.md)
 - `--purpose "<text>"` — prefill Purpose non-interactively
-- `--prompt` — force the interactive wizard (even if stdin is not a TTY)
+- `--prompt` — force the interactive wizard (TTY required)
 - `--detect` — auto-detect stack and commands from manifest files (facts-first, deterministic; handles missing/odd values safely). May apply safe conventional defaults for Setup when manifests don't specify explicit scripts.
 
 ### Quick minimal scaffold
@@ -164,9 +164,9 @@ Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--for
 
 ```text
 Top offenders:
-  .github/copilot-instructions.md (25 lines)
+  docs/PROJECT.md (45 lines)
+  docs/CONVENTIONS.md (38 lines)
   AGENTS.md (17 lines)
-  CLAUDE.md (12 lines)
 ```
 
 **Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are ~10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
@@ -255,7 +255,8 @@ Respects the [NO_COLOR](https://no-color.org/) standard and `TERM=dumb`.
 ## Development
 
 ```sh
-pip install -e . --group dev
+pip install -e .
+pip install pytest
 python3 -m pytest tests/ -v
 ```
 
