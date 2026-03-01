@@ -4,10 +4,9 @@
 
 <img src="https://raw.githubusercontent.com/Lucenx9/agentinit/main/assets/preview.png" width="900" alt="agentinit preview" />
 
-Scaffold tiny, router-first context files so your AI coding agents stop guessing your project setup, style rules, and test commands.
+Scaffold **hardened, router-first** context files so your AI coding agents stop guessing and start delivering.
 
-Pure Python standard library. No runtime dependencies. Does not touch your source code.
-Generates router files for **Claude Code**, **Codex**, **Cursor**, **Copilot**, and **Gemini CLI**.
+Pure Python standard library. No runtime dependencies. Generates 2026-ready manifests for **Claude Code**, **Cursor**, **Copilot**, **Gemini CLI**, and **Windsurf**.
 
 ## 🚀 Start in 60 seconds
 
@@ -15,47 +14,49 @@ Generates router files for **Claude Code**, **Codex**, **Cursor**, **Copilot**, 
 # 1. Install via pipx (recommended)
 pipx install agentinit
 
-# 2. Add minimal agent context to your project
+# 2. Initialize hardened context in your project
 cd your-project
 agentinit init --minimal
 ```
 
 ### What it does
 
-Instead of giant, token-heavy instruction files for every tool, `agentinit` creates a **router-first** structure. Top-level files stay tiny and only point to `AGENTS.md`, which links to `docs/*`.
+Instead of giant, token-heavy instruction files, `agentinit` implements a **hierarchical context strategy**. It creates a machine-readable map of your project and enforces autonomy via **Hardened Mandates**.
 
 ```text
 your-project/
-├── AGENTS.md              # The central hub for all agents
+├── llms.txt               # The "robots.txt" for AI (Discovery Index)
+├── AGENTS.md              # The central hub with Hardened Mandates
 ├── CLAUDE.md              # Claude Code router
+├── GEMINI.md              # Gemini CLI router
 └── docs/
-    ├── PROJECT.md         # What this project is (you fill this)
-    └── CONVENTIONS.md     # How to work in it (you fill this)
+    ├── PROJECT.md         # What this project is
+    ├── CONVENTIONS.md     # How to work in it
+    └── STATE.md           # Persistent working memory (AI-readable)
 ```
 
 **Next steps:** Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and fill them in.
 
-**Next session:** Tell your agent: _"follow the router for your tool (CLAUDE.md / GEMINI.md / etc) → AGENTS.md"_
+**Next session:** Your agent will find `llms.txt`, read your rules in `AGENTS.md`, and follow the mandates to autonomously maintain `docs/STATE.md` and `docs/TODO.md`.
 
 ### Troubleshooting: files not visible to your agent
 
-Some agents only scan tracked files or respect `.gitignore`. If your agent says it can't find or examine your context files:
+Some agents only scan tracked files. If your agent says it can't find your context:
 
-- **Track the files:** Add the generated files so your agent can see them.
+- **Track everything:** Add the manifests so your agent can see them.
 
   ```sh
-  git add AGENTS.md CLAUDE.md docs/
-  git add GEMINI.md .agents/  # if present
+  git add llms.txt AGENTS.md CLAUDE.md GEMINI.md docs/
+  git add .agents/  # if you added extras
   ```
 
-- **Verify ignores:** Run `git status --ignored` or `git check-ignore -v docs/PROJECT.md` to see if your `.gitignore` is hiding them.
+- **Verify ignores:** Run `git status --ignored` to see if your `.gitignore` is hiding them.
 
 <details>
 <summary><b>Minimal .gitignore exceptions</b></summary>
 
-If your `.gitignore` is aggressively ignoring markdown files or directories, you can add these exceptions without unignoring everything else:
-
 ```text
+!llms.txt
 !AGENTS.md
 !CLAUDE.md
 !GEMINI.md
@@ -74,7 +75,7 @@ If your `.gitignore` is aggressively ignoring markdown files or directories, you
 
 ## 🛠️ Add extras (Skills, MCP, Personality)
 
-Agents can do more than just read conventions. You can inject modular resources directly into your project. Resources are written under `.agents/` and linked from `AGENTS.md` automatically.
+Agents can do more than just read conventions. Inject modular, hardened resources directly into your project.
 
 ```sh
 # View available resources
@@ -82,46 +83,23 @@ agentinit add --list
 
 # Add specific capabilities
 agentinit add skill code-reviewer
-agentinit add mcp github
 agentinit add security
 agentinit add soul "YourAgentName"
 ```
 
-_(Replace `"YourAgentName"` with any name you want for your agent persona.)_
-
-This creates modular files and automatically links them in your `AGENTS.md`:
-
-```text
-your-project/
-├── .agents/
-│   ├── security.md
-│   ├── soul.md
-│   ├── mcp-github.md
-│   └── skills/
-│       └── code-reviewer/
-│           └── SKILL.md
-└── AGENTS.md              # Automatically updated!
-```
-
-_(Adding resources is safe: it skips existing files to avoid duplicates. Use `--force` to overwrite.)_
+Resources in `.agents/` are automatically linked in `AGENTS.md` and use **Imperative Mandates** (`MUST ALWAYS`, `MUST NEVER`) to ensure compliance and zero-sycophancy.
 
 ---
 
 ## 🚦 Keep your context clean (Status & CI)
 
-Token limits matter. `agentinit` includes a status checker and linter to prevent context bloat, broken links, and missing information.
+Token limits matter. `agentinit` includes a validator to prevent context bloat, broken links, and missing information.
 
 ```sh
 # View line budgets, broken references, and missing details
 agentinit status
-```
 
-_Example output:_  
-`! docs/CONVENTIONS.md (201 lines >= 200)`  
-`x Broken reference: docs/missing-file.md`
-
-```sh
-# Perfect for CI (exits non-zero on hard violations)
+# Perfect for CI (exits non-zero on violations)
 agentinit status --check
 ```
 
@@ -129,11 +107,9 @@ agentinit status --check
 
 ## 🤖 AI Prompt: Fill the docs fast
 
-Don't want to write `PROJECT.md` and `CONVENTIONS.md` yourself? After running `agentinit init`, paste this prompt to your favorite AI agent:
+After running `agentinit init`, paste this to your favorite AI agent:
 
-> Read the entire repository. Fill in `docs/PROJECT.md` and `docs/CONVENTIONS.md` using **only** facts found in the repo (package files, configs, source code, CI). Do not invent commands. If information is missing, write `TODO: <what's needed>`. Do not modify any other files.
-
-Review the result, fix the TODOs, and commit!
+> Read the entire repository. Fill in `docs/PROJECT.md` and `docs/CONVENTIONS.md` using **only** facts found in the repo (package files, configs, source code, CI). Do not invent commands. If information is missing, write `TODO: <what's needed>`. Update `docs/STATE.md` and `docs/TODO.md` to reflect our current progress. Do not modify any other files.
 
 ---
 
@@ -142,48 +118,28 @@ Review the result, fix the TODOs, and commit!
 
 ### Core Commands
 
-- `agentinit new <project>` — Create a new directory and scaffold files.
 - `agentinit init` — Add missing files to an existing directory.
 - `agentinit minimal` — Shortcut for `init --minimal`.
-- `agentinit add <type> <name>` — Add modular resources (skills, mcp, security, soul).
 - `agentinit status` — Check health, line budgets, and broken links.
-- `agentinit lint` — Run `contextlint` to find duplicate text across files.
+- `agentinit add <type> <name>` — Add modular resources (skills, mcp, security, soul).
+- `agentinit new <project>` — Create a new directory and scaffold files.
 - `agentinit remove` — Safely remove or archive agent files.
 
-### Common Flags (init / new / minimal)
+### Common Flags
 
-- `--yes` or `-y` — Runs non-interactively / skips the wizard (use `--force` to overwrite agentinit-managed files).
-- `--minimal` — Create only the 4 core files (AGENTS.md, CLAUDE.md, and docs).
 - `--detect` — Auto-detect stack and commands from package files (e.g., `package.json`, `pyproject.toml`).
+- `--yes` / `-y` — Runs non-interactively and skips the wizard.
 - `--purpose "<text>"` — Prefill the project purpose non-interactively.
-
-### Linting Options
-
-```sh
-# Human-readable output
-agentinit lint
-
-# Machine-readable JSON for CI
-agentinit lint --format json
-```
-
-### Removing Files
-
-```sh
-agentinit remove --dry-run    # Preview what will happen
-agentinit remove              # Remove with confirmation
-agentinit remove --archive    # Move to .agentinit-archive/ instead of deleting
-```
 
 </details>
 
 <details>
-<summary><b>💡 Why Router-First?</b></summary>
+<summary><b>💡 Why Hardened Context?</b></summary>
 
-- **Saves Tokens:** Re-typing 400 tokens per session across 20 sessions/month wastes 8k+ tokens.
-- **Single Source of Truth:** Update a convention once in `docs/`, and Cursor, Copilot, and Claude all see it.
-- **Prevents Hallucinations:** Agents stop guessing your test command or trying to use the wrong linting tool.
-- **Faster Onboarding:** Human developers benefit from reading `PROJECT.md` just as much as the AI does.
+- **Agent Autonomy:** Explicit mandates (`YOU MUST ALWAYS read state.md`) transform the agent from a chatbot into a disciplined project maintainer.
+- **AI-Discovery Index:** `llms.txt` ensures any tool (Cursor, Windsurf, Claude) immediately understands your project map.
+- **Progressive Disclosure:** Keeps the context window high-signal by loading deep details only when relevant.
+- **Zero Sycophancy:** Mandates force the agent to skip "I'd be happy to help!" and jump straight to the technical solution.
 
 </details>
 
@@ -193,22 +149,11 @@ agentinit remove --archive    # Move to .agentinit-archive/ instead of deleting
 Requires **Python 3.10+**.
 
 ```sh
-# Install (pipx is recommended for CLI apps)
+# Install (pipx is recommended)
 pipx install agentinit
 
 # Update
 pipx upgrade agentinit
-
-# Install without pipx
-pip install agentinit
-```
-
-### Color Output
-
-Colored output is enabled on terminals. It disables automatically in CI or when piping. Force disable it with:
-
-```sh
-NO_COLOR=1 agentinit init
 ```
 
 ### Development
