@@ -25,6 +25,7 @@ agentinit new myproject --yes --minimal
 ```
 
 Then fill only `docs/PROJECT.md` and `docs/CONVENTIONS.md`.
+Full mode also adds `docs/TODO.md`, `docs/DECISIONS.md`, and `docs/STATE.md`.
 
 Next time, tell your agent: follow `CLAUDE.md` / `AGENTS.md`.
 
@@ -45,7 +46,7 @@ your-project/
 
 ### Token savings (rough estimate)
 
-- Top-level routers (`CLAUDE.md`, `GEMINI.md`, Cursor rules) are kept strictly under 15 lines.
+- Top-level routers (`CLAUDE.md`, `GEMINI.md`, Cursor rules) are kept to ~10–20 lines.
 - Tokens saved ≈ tokens you usually re-type per session × number of sessions.
 - If you re-type ~200–400 tokens and do 10–20 sessions/month: ~2k–8k tokens/month.
 - Actual savings depend on your workflow and which tool loads which files.
@@ -98,7 +99,7 @@ pipx install agentinit
 pip install agentinit
 
 # Or run one-off without installing
-pipx run agentinit --help
+pipx run agentinit -- --help
 
 # Bleeding edge (latest on main)
 # pipx install git+https://github.com/Lucenx9/agentinit.git@main
@@ -168,7 +169,7 @@ Top offenders:
   CLAUDE.md (12 lines)
 ```
 
-**Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are strictly 10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
+**Router-first templates:** `agentinit` keeps your always-loaded context tiny. Files like `CLAUDE.md`, `GEMINI.md`, and Cursor rules are ~10–20 lines. They serve only to route the agent to `AGENTS.md`, which then points to deeper details in `docs/`.
 
 ```sh
 # View current status, warnings, and missing files
