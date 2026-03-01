@@ -152,7 +152,7 @@ Flags:
 agentinit minimal
 ```
 
-Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`).
+Shortcut for `agentinit init --minimal`. Accepts the same flags (`--yes`, `--force`, `--purpose`, `--prompt`, `--detect`).
 
 ### Token discipline (status)
 
@@ -285,10 +285,6 @@ git branch -D agentinit-test
 ```
 
 </details>
-
-## Planned
-
-- `--json` output mode for scripting and CI pipelines
 
 ## License
 
