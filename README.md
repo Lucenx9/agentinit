@@ -37,6 +37,37 @@ your-project/
 
 **Next session:** Tell your agent: _"follow the router for your tool (CLAUDE.md / GEMINI.md / etc) → AGENTS.md"_
 
+### Troubleshooting: files not visible to your agent
+
+Some agents only scan tracked files or respect `.gitignore`. If your agent says it can't find or examine your context files:
+
+- **Track the files:** Add the generated files so your agent can see them.
+
+  ```sh
+  git add AGENTS.md CLAUDE.md docs/
+  git add GEMINI.md .agents/  # if present
+  ```
+- **Verify ignores:** Run `git status --ignored` or `git check-ignore -v docs/PROJECT.md` to see if your `.gitignore` is hiding them.
+
+<details>
+<summary><b>Minimal .gitignore exceptions</b></summary>
+
+If your `.gitignore` is aggressively ignoring markdown files or directories, you can add these exceptions without unignoring everything else:
+
+```text
+!AGENTS.md
+!CLAUDE.md
+!GEMINI.md
+!docs/PROJECT.md
+!docs/CONVENTIONS.md
+!docs/TODO.md
+!docs/DECISIONS.md
+!docs/STATE.md
+!.agents/
+!.agents/**
+```
+</details>
+
 ---
 
 ## 🛠️ Add extras (Skills, MCP, Personality)

@@ -43,7 +43,7 @@ def _c(text, code, stream=None):
     return text
 
 
-def _print_next_steps():
+def _print_next_steps(dest="."):
     """Print actionable guidance after a successful init or new."""
     print(f"\n{_c('Next steps:', _CYAN + _BOLD)}")
     print(
@@ -55,6 +55,18 @@ def _print_next_steps():
     print(
         f"  {_c('3.', _CYAN)} Run your coding agent — it will read AGENTS.md automatically"
     )
+    if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+        candidate_paths = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "docs/", ".agents/"]
+        existing_paths = []
+        for path in candidate_paths:
+            full_path = os.path.join(dest, path.rstrip("/"))
+            if os.path.exists(full_path):
+                existing_paths.append(path)
+        
+        if existing_paths:
+            paths_str = " ".join(existing_paths)
+            print(f"\n  {_c('Tip:', _YELLOW)} Some agents only read tracked files.")
+            print(f"       Consider: {_c(f'git add {paths_str}', _BOLD)}")
 
 
 # Files managed by agentinit (relative to project root).
@@ -620,7 +632,7 @@ def cmd_new(args):
         print(f"  Copied: {len(copied)} files")
     if skipped:
         print(f"  Skipped (already exist): {', '.join(skipped)}")
-    _print_next_steps()
+    _print_next_steps(dest)
 
 
 def cmd_init(args):
@@ -662,7 +674,7 @@ def cmd_init(args):
     if not copied:
         print("All agentinit files already present. Nothing to copy.")
     else:
-        _print_next_steps()
+        _print_next_steps(dest)
 
 
 def cmd_remove(args):

@@ -1177,3 +1177,67 @@ class TestCmdAdd:
         
         # Still only 1
         assert count2 == 1
+
+
+class TestPrintNextSteps:
+    def test_print_next_steps_with_tty_all_files(self, monkeypatch, capsys, tmp_path):
+        import sys
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        from agentinit import cli
+        
+        # Create all dummy files/dirs
+        (tmp_path / "AGENTS.md").touch()
+        (tmp_path / "CLAUDE.md").touch()
+        (tmp_path / "GEMINI.md").touch()
+        (tmp_path / "docs").mkdir()
+        (tmp_path / ".agents").mkdir()
+        
+        cli._print_next_steps(str(tmp_path))
+        out, _ = capsys.readouterr()
+        assert "Some agents only read tracked files." in out
+        assert "git add AGENTS.md CLAUDE.md GEMINI.md docs/ .agents/" in out
+
+    def test_print_next_steps_with_tty_partial_files(self, monkeypatch, capsys, tmp_path):
+        import sys
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        from agentinit import cli
+        
+        # Create only some dummy files/dirs
+        (tmp_path / "AGENTS.md").touch()
+        (tmp_path / "CLAUDE.md").touch()
+        (tmp_path / "docs").mkdir()
+        # Missing GEMINI.md and .agents/
+        
+        cli._print_next_steps(str(tmp_path))
+        out, _ = capsys.readouterr()
+        assert "Some agents only read tracked files." in out
+        assert "git add AGENTS.md CLAUDE.md docs/" in out
+        assert ".agents" not in out
+        assert "GEMINI.md" not in out
+
+    def test_print_next_steps_without_tty(self, monkeypatch, capsys, tmp_path):
+        import sys
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+        from agentinit import cli
+        
+        (tmp_path / "AGENTS.md").touch()
+        
+        cli._print_next_steps(str(tmp_path))
+        out, _ = capsys.readouterr()
+        assert "Some agents only read tracked files." not in out
+        assert "git add" not in out
+
+    def test_print_next_steps_no_files(self, monkeypatch, capsys, tmp_path):
+        import sys
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        from agentinit import cli
+        
+        # Create no files
+        cli._print_next_steps(str(tmp_path))
+        out, _ = capsys.readouterr()
+        assert "Some agents only read tracked files." not in out
+        assert "git add" not in out
