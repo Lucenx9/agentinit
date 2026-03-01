@@ -255,9 +255,12 @@ Respects the [NO_COLOR](https://no-color.org/) standard and `TERM=dumb`.
 ## Development
 
 ```sh
-pip install -e .
-pip install pytest
+# Requires pip >= 25.1 for --group support (PEP 735)
+pip install -e . --group dev
 python3 -m pytest tests/ -v
+
+# Older pip: install dev deps manually
+# pip install -e . && pip install pytest
 ```
 
 <details>
