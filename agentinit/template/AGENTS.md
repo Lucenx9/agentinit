@@ -24,6 +24,8 @@
 
 **Language:** You may chat in any language, but keep `docs/*` in English.
 
+**Fallback:** If you're unsure what to do next, open `docs/STATE.md` first.
+
 **Context files (load when relevant):**
 
 - `docs/PROJECT.md` — Scope, stack, layout, constraints.
