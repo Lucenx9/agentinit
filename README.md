@@ -51,8 +51,10 @@ agentinit add --list
 agentinit add skill code-reviewer
 agentinit add mcp github
 agentinit add security
-agentinit add soul "Lucenx"
+agentinit add soul "YourAgentName"
 ```
+
+*(Replace `"YourAgentName"` with any name you want for your agent persona.)*
 
 This creates modular files and automatically links them in your `AGENTS.md`:
 
