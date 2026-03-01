@@ -40,7 +40,7 @@ Perform a frontend-specific code review on UI components and pages. Cover access
 
 ## Output Format
 
-```
+```text
 [severity] file:line — description
   Suggestion: ...
 ```

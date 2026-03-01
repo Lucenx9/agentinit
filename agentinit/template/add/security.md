@@ -28,6 +28,7 @@
 ## Incident Response
 
 If you discover a committed secret:
+
 1. Rotate the credential immediately
 2. Remove from git history (`git filter-repo` or BFG)
 3. Add the pattern to `.gitignore` and pre-commit hooks

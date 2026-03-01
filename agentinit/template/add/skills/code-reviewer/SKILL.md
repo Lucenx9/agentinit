@@ -38,7 +38,7 @@ Perform a deep code review on the staged or specified changes. Follow the checkl
 
 For each finding, report:
 
-```
+```text
 [severity] file:line — description
   Suggestion: ...
 ```

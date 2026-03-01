@@ -42,7 +42,9 @@ Once connected, you can:
 - **Use a read-only database user** — create a dedicated role with SELECT-only permissions
 - Never use production credentials in development
 - Store connection strings in environment variables, not in code:
+
   ```bash
   export DATABASE_URL="postgresql://readonly:pass@localhost:5432/mydb"
   ```
+
 - Consider using connection pooling (PgBouncer) for shared environments
