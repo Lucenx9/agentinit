@@ -210,6 +210,35 @@ class TestApplyUpdates:
             f"Safe Defaults should be between # Conventions and ## Style, got positions: " \
             f"Conventions={conventions_idx}, SafeDefaults={safe_defaults_idx}, Style={style_idx}"
 
+    def test_wizard_env_inserts_before_stack(self, tmp_path, monkeypatch):
+        """Wizard environment should be inserted before ## Stack."""
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True, purpose="Test project")
+        inputs = iter(["Linux x86_64", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "## Environment" in content
+        assert "- OS/device: Linux x86_64" in content
+        env_pos = content.index("## Environment")
+        stack_pos = content.index("## Stack")
+        assert env_pos < stack_pos
+
+    def test_wizard_constraints_replaces_placeholders(self, tmp_path, monkeypatch):
+        """Wizard constraints should replace the template constraint placeholders."""
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True, purpose="Test project")
+        inputs = iter(["", "No external API calls", ""])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- No external API calls" in content
+        assert "(document security constraints)" not in content
+
 
 # ---------------------------------------------------------------------------
 # cmd_new
@@ -1235,9 +1264,181 @@ class TestPrintNextSteps:
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
         from agentinit import cli
-        
+
         # Create no files
         cli._print_next_steps(str(tmp_path))
         out, _ = capsys.readouterr()
         assert "Some agents only read tracked files." not in out
         assert "git add" not in out
+
+
+# ---------------------------------------------------------------------------
+# Version fallback
+# ---------------------------------------------------------------------------
+
+
+class TestVersionFallback:
+    def test_version_fallback_when_not_installed(self, monkeypatch):
+        """build_parser should not crash when package is not installed."""
+        import importlib.metadata
+
+        original = importlib.metadata.version
+
+        def fake_version(name):
+            if name == "agentinit":
+                raise importlib.metadata.PackageNotFoundError(name)
+            return original(name)
+
+        monkeypatch.setattr(importlib.metadata, "version", fake_version)
+        parser = cli.build_parser()
+        assert parser is not None
+        # --version should show "dev"
+        with pytest.raises(SystemExit) as exc:
+            parser.parse_args(["--version"])
+        assert exc.value.code == 0
+
+
+# ---------------------------------------------------------------------------
+# TOML detection warning on Python 3.10
+# ---------------------------------------------------------------------------
+
+
+class TestDetectTomlWarning:
+    def test_warns_when_tomllib_unavailable(self, tmp_path, monkeypatch, capsys):
+        """Print warning when tomllib is missing and TOML manifests exist."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "test"\n', encoding="utf-8"
+        )
+
+        # Simulate tomllib not being available
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "tomllib":
+                raise ImportError("no tomllib")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+
+        err = capsys.readouterr().err
+        assert "TOML detection" in err
+        assert "pyproject.toml" in err
+        assert "3.11" in err
+
+    def test_no_warning_without_toml_files(self, tmp_path, monkeypatch, capsys):
+        """No warning when no TOML manifests exist."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "tomllib":
+                raise ImportError("no tomllib")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+
+        err = capsys.readouterr().err
+        assert "TOML detection" not in err
+
+
+# ---------------------------------------------------------------------------
+# Commands section markers
+# ---------------------------------------------------------------------------
+
+
+class TestCommandsMarkers:
+    def test_wizard_commands_replace_between_markers(self, tmp_path, monkeypatch):
+        """Wizard commands should replace content between markers."""
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True, purpose="Test project")
+        inputs = iter(["", "", "make build, make test, make run"])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- make build" in content
+        assert "- make test" in content
+        assert "- make run" in content
+        # Between markers should have no "(not configured)"
+        start = content.index("<!-- agentinit:commands:start -->")
+        end = content.index("<!-- agentinit:commands:end -->")
+        between = content[start:end]
+        assert "(not configured)" not in between
+
+    def test_markers_survive_whitespace_changes(self, tmp_path):
+        """Commands replacement works even with extra whitespace in template."""
+        cli.copy_template(str(tmp_path))
+        project_path = tmp_path / "docs" / "PROJECT.md"
+        content = project_path.read_text(encoding="utf-8")
+        # Add extra whitespace around the commands section
+        content = content.replace("## Commands\n", "## Commands\n\n")
+        project_path.write_text(content, encoding="utf-8")
+
+        new_body = "- npm install\n- npm test"
+        result = cli._replace_commands_section(content, new_body)
+        assert "- npm install" in result
+        assert "- npm test" in result
+        assert "<!-- agentinit:commands:start -->" in result
+        assert "<!-- agentinit:commands:end -->" in result
+
+    def test_detect_updates_within_markers(self, tmp_path, monkeypatch):
+        """--detect should update individual command lines within markers."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "go.mod").write_text(
+            "module myapp\n\ngo 1.22\n", encoding="utf-8"
+        )
+        args = make_init_args(detect=True)
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "<!-- agentinit:commands:start -->" in content
+        assert "- Test: go test ./..." in content
+        assert "<!-- agentinit:commands:end -->" in content
+
+
+# ---------------------------------------------------------------------------
+# Wizard skip with --purpose
+# ---------------------------------------------------------------------------
+
+
+class TestWizardPurposeSkip:
+    def test_purpose_skips_wizard_on_tty(self, tmp_path, monkeypatch):
+        """--purpose should not trigger the wizard even on a TTY."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        monkeypatch.setattr(sys, "argv", ["agentinit", "init", "--purpose", "My project"])
+        # If wizard ran, it would call input() and fail since we don't mock it
+        cli.main()
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "My project" in content
+
+    def test_hint_when_fields_missing(self, tmp_path, monkeypatch, capsys):
+        """Print hint about --prompt when wizard is skipped and fields remain."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="My project"))
+        out = capsys.readouterr().out
+        assert "Run with --prompt to fill interactively." in out
+
+    def test_no_wizard_no_purpose_no_tty(self, tmp_path, monkeypatch):
+        """Without TTY and without --purpose, wizard should not run."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        monkeypatch.setattr(sys, "argv", ["agentinit", "init"])
+        cli.main()
+        assert (tmp_path / "AGENTS.md").exists()

@@ -11,11 +11,13 @@
 
 ## Commands
 
+<!-- agentinit:commands:start -->
 - Setup: (not configured)
 - Build: (not configured)
 - Test: (not configured)
 - Lint/Format: (not configured)
 - Run: (not configured)
+<!-- agentinit:commands:end -->
 
 ## Layout
 

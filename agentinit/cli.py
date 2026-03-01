@@ -318,6 +318,19 @@ def _run_detect(dest, project_path, content):
     except ImportError:
         tomllib = None
 
+    if not tomllib:
+        toml_files = [
+            f for f in ("pyproject.toml", "Cargo.toml")
+            if os.path.isfile(os.path.join(dest, f))
+        ]
+        if toml_files:
+            print(
+                _c("Warning:", _YELLOW, sys.stderr)
+                + f" TOML detection ({', '.join(toml_files)}) skipped — "
+                "requires Python 3.11+. Run with Python 3.11 or later for full detection.",
+                file=sys.stderr,
+            )
+
     if tomllib:
         # 3. Rust: Cargo.toml
         cargo_path = os.path.join(dest, "Cargo.toml")
@@ -397,6 +410,21 @@ def _run_detect(dest, project_path, content):
     return content
 
 
+_COMMANDS_START = "<!-- agentinit:commands:start -->"
+_COMMANDS_END = "<!-- agentinit:commands:end -->"
+
+
+def _replace_commands_section(content, new_body):
+    """Replace content between commands markers, preserving surrounding text."""
+    pattern = re.compile(
+        re.escape(_COMMANDS_START) + r".*?" + re.escape(_COMMANDS_END),
+        re.DOTALL,
+    )
+    replacement = f"{_COMMANDS_START}\n{new_body}\n{_COMMANDS_END}"
+    new_content = pattern.sub(replacement, content, count=1)
+    return new_content
+
+
 def apply_updates(dest, args):
     """Apply purpose and wizard data to project files."""
     wizard_run = args.prompt
@@ -410,8 +438,13 @@ def apply_updates(dest, args):
             sys.exit(1)
         try:
             purpose = args.purpose
-            while not purpose:
-                purpose = input("Purpose: ").strip()
+            if not purpose:
+                purpose = input("Purpose (required): ").strip()
+            if not purpose:
+                purpose = input("Purpose cannot be empty: ").strip()
+            if not purpose:
+                print("No purpose provided — leaving as placeholder.")
+                purpose = ""
             env = input("Environment (OS/device) [optional]: ").strip()
             constraints = input("Constraints [optional]: ").strip()
             commands = input(
@@ -446,27 +479,20 @@ def apply_updates(dest, args):
         if wizard_run:
             if env:
                 content = content.replace(
-                    "## Stack (TBD)",
-                    f"## Environment\n\n- OS/device: {env}\n\n## Stack (TBD)",
+                    "## Stack",
+                    f"## Environment\n\n- OS/device: {env}\n\n## Stack",
+                    1,
                 )
             if commands:
                 cmds_list = "\n".join(
                     f"- {c.strip()}" for c in commands.split(",") if c.strip()
                 )
-                old_commands = (
-                    "## Commands\n\n"
-                    "- Setup: (not configured)\n"
-                    "- Build: (not configured)\n"
-                    "- Test: (not configured)\n"
-                    "- Lint/Format: (not configured)\n"
-                    "- Run: (not configured)"
-                )
-                content = content.replace(old_commands, f"## Commands\n\n{cmds_list}")
+                content = _replace_commands_section(content, cmds_list)
             if constraints:
                 old_constraints = (
-                    "- Document non-negotiable constraints here.\n"
-                    "- List security/compliance/performance boundaries.\n"
-                    "- Note delivery deadlines or operational limits."
+                    "- **Security:** (document security constraints)\n"
+                    "- **Performance:** (document performance constraints)\n"
+                    "- **Deadlines/Limits:** (document deadline constraints)"
                 )
                 content = content.replace(old_constraints, f"- {constraints}")
 
@@ -475,6 +501,9 @@ def apply_updates(dest, args):
 
         with open(project_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
+
+        if not wizard_run and "(not configured)" in content:
+            print("Run with --prompt to fill interactively.")
 
     if wizard_run:
         conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
@@ -1269,10 +1298,14 @@ def build_parser():
         prog="agentinit",
         description="Scaffold agent context files into a project.",
     )
+    try:
+        _version = importlib.metadata.version("agentinit")
+    except importlib.metadata.PackageNotFoundError:
+        _version = "dev"
     parser.add_argument(
         "--version",
         action="version",
-        version=importlib.metadata.version("agentinit"),
+        version=_version,
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -1435,11 +1468,12 @@ def main():
         parser.print_help()
         return
 
-    # Auto-enable interactive wizard on TTY unless --yes was passed.
+    # Auto-enable interactive wizard on TTY unless --yes or prefill flags were passed.
     if args.command in ("new", "init", "minimal"):
+        has_prefills = bool(getattr(args, "purpose", None))
         if getattr(args, "yes", False):
             args.prompt = False
-        elif not args.prompt and sys.stdin.isatty():
+        elif not args.prompt and not has_prefills and sys.stdin.isatty():
             args.prompt = True
 
     if args.command == "new":
