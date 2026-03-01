@@ -204,6 +204,7 @@ agentinit remove --force      # skip confirmation prompt
 | `docs/CONVENTIONS.md` | Style, naming, testing, git workflow |
 | `docs/TODO.md` | Active work (in progress / next / blocked / done) |
 | `docs/DECISIONS.md` | ADR-lite decision log |
+| `docs/STATE.md` | Current focus, next steps, blockers (session handoff) |
 
 ### Tool-specific routers
 
