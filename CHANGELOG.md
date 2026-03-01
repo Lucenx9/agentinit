@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- New `agentinit add` command for injecting resources (soul, skill, mcp, security) into existing projects.
+- Alias `--yes` / `-y` for `init --force` (non-interactive mode).
+- README rewrite for clarity and progressive disclosure.
+- Fix markdownlint errors in README and agent templates.
+
 ## 0.3.0
 
 - Vendor contextlint: new `agentinit lint` command for checking bloat, broken refs, and duplication.
