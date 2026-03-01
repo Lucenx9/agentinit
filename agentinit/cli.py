@@ -68,6 +68,7 @@ MANAGED_FILES = [
     "docs/CONVENTIONS.md",
     "docs/TODO.md",
     "docs/DECISIONS.md",
+    "docs/STATE.md",
     ".cursor/rules/project.mdc",
     ".github/copilot-instructions.md",
 ]
@@ -90,6 +91,7 @@ REMOVABLE_FILES = [
     "docs/CONVENTIONS.md",
     "docs/TODO.md",
     "docs/DECISIONS.md",
+    "docs/STATE.md",
     ".cursor/rules/project.mdc",
     ".github/copilot-instructions.md",
 ]

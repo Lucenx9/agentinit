@@ -26,6 +26,7 @@
 - `docs/CONVENTIONS.md` — Style, naming, testing, git workflow.
 - `docs/TODO.md` — Active work, plans, assumptions.
 - `docs/DECISIONS.md` — Past architectural choices and rationale.
+- `docs/STATE.md` — Current focus, next steps, blockers (session handoff).
 
 **Token discipline:**
 

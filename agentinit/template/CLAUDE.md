@@ -7,6 +7,10 @@
 3. Consult `docs/CONVENTIONS.md` for style, naming, testing, and git workflow.
 4. Log plans in `docs/TODO.md` and decisions in `docs/DECISIONS.md`.
 
+**Resume:** At session start, read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` to pick up where the last session left off.
+
 **Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` contain `TBD`, fill them concisely (facts-only) before starting other work.
+
+**Maintenance:** If you introduce or change commands, conventions, or decisions, update the corresponding docs in the same PR. Update `docs/STATE.md` at the end of each session.
 
 Do not duplicate policy text here. Use this file purely as an index to the deeper context in `docs/`.
