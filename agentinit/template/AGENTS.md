@@ -22,6 +22,8 @@
 
 **Resume:** At session start, read `docs/STATE.md` + `docs/TODO.md` + `docs/DECISIONS.md`.
 
+**Language:** You may chat in any language, but keep `docs/*` in English.
+
 **Context files (load when relevant):**
 
 - `docs/PROJECT.md` — Scope, stack, layout, constraints.
