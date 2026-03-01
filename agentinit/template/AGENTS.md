@@ -15,6 +15,8 @@
 - Lint/Format: TBD
 - Run: TBD
 
+> If you introduce a tool or dependency (pytest, ruff, etc.), record it in `docs/DECISIONS.md` and update `docs/PROJECT.md` commands in the same PR.
+
 **When unsure:**
 
 - Ask for clarification / confirm assumptions before risky changes.
