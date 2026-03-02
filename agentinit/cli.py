@@ -62,7 +62,7 @@ def _print_next_steps(dest="."):
             full_path = os.path.join(dest, path.rstrip("/"))
             if os.path.exists(full_path):
                 existing_paths.append(path)
-        
+
         if existing_paths:
             paths_str = " ".join(existing_paths)
             print(f"\n  {_c('Tip:', _YELLOW)} Some agents only read tracked files.")
@@ -294,9 +294,13 @@ def _run_detect(dest, project_path, content):
             if "test" in scripts:
                 cmd_updates["- Test: (not configured)"] = f"- Test: {run_prefix}test"
             if "lint" in scripts:
-                cmd_updates["- Lint/Format: (not configured)"] = f"- Lint/Format: {run_prefix}lint"
+                cmd_updates["- Lint/Format: (not configured)"] = (
+                    f"- Lint/Format: {run_prefix}lint"
+                )
             elif "format" in scripts:
-                cmd_updates["- Lint/Format: (not configured)"] = f"- Lint/Format: {run_prefix}format"
+                cmd_updates["- Lint/Format: (not configured)"] = (
+                    f"- Lint/Format: {run_prefix}format"
+                )
             if "dev" in scripts:
                 cmd_updates["- Run: (not configured)"] = f"- Run: {run_prefix}dev"
             elif "start" in scripts:
@@ -316,9 +320,13 @@ def _run_detect(dest, project_path, content):
                         go_version = line.split(" ")[1]
                         break
 
-            stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Go"
+            stack_updates["- **Language(s):** (not configured)"] = (
+                "- **Language(s):** Go"
+            )
             if go_version:
-                stack_updates["- **Runtime:** (not configured)"] = f"- **Runtime:** Go {go_version}"
+                stack_updates["- **Runtime:** (not configured)"] = (
+                    f"- **Runtime:** Go {go_version}"
+                )
 
             cmd_updates["- Setup: (not configured)"] = "- Setup: go mod download"
             cmd_updates["- Build: (not configured)"] = "- Build: go build ./..."
@@ -335,7 +343,8 @@ def _run_detect(dest, project_path, content):
 
     if not tomllib:
         toml_files = [
-            f for f in ("pyproject.toml", "Cargo.toml")
+            f
+            for f in ("pyproject.toml", "Cargo.toml")
             if os.path.isfile(os.path.join(dest, f))
         ]
         if toml_files:
@@ -396,7 +405,9 @@ def _run_detect(dest, project_path, content):
                     project = {}
                 requires_python = project.get("requires-python", "")
 
-                stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Python"
+                stack_updates["- **Language(s):** (not configured)"] = (
+                    "- **Language(s):** Python"
+                )
                 if requires_python:
                     stack_updates["- **Runtime:** (not configured)"] = (
                         f"- **Runtime:** Python {requires_python}"
@@ -412,7 +423,9 @@ def _run_detect(dest, project_path, content):
                     cmd_updates["- Setup: (not configured)"] = "- Setup: pdm install"
                     cmd_updates["- Run: (not configured)"] = "- Run: pdm run python"
                 else:
-                    cmd_updates["- Setup: (not configured)"] = "- Setup: pip install -e ."
+                    cmd_updates["- Setup: (not configured)"] = (
+                        "- Setup: pip install -e ."
+                    )
             except Exception:
                 pass
 
@@ -435,7 +448,7 @@ def _replace_commands_section(content, new_body):
         re.DOTALL,
     )
     replacement = f"{_COMMANDS_START}\n{new_body}\n{_COMMANDS_END}"
-    new_content = pattern.sub(replacement, content, count=1)
+    new_content = pattern.sub(lambda m: replacement, content, count=1)
     return new_content
 
 
@@ -849,9 +862,7 @@ def cmd_status(args):
     hard_violations = []
     broken_refs = []
     file_sizes = []
-    files_to_check = (
-        MINIMAL_MANAGED_FILES if minimal_mode else MANAGED_FILES
-    )
+    files_to_check = MINIMAL_MANAGED_FILES if minimal_mode else MANAGED_FILES
     minimal_ref_paths = {
         os.path.normpath(p).replace("\\", "/") for p in MINIMAL_MANAGED_FILES
     }
@@ -1135,7 +1146,9 @@ def _print_add_list(resource_type):
         handler = _ADD_HANDLERS[resource_type]
         src_pattern = handler["template_src"]
         if handler["needs_name"]:
-            src_path = os.path.join(ADD_TEMPLATE_DIR, src_pattern.replace("{name}", item))
+            src_path = os.path.join(
+                ADD_TEMPLATE_DIR, src_pattern.replace("{name}", item)
+            )
         else:
             src_path = os.path.join(ADD_TEMPLATE_DIR, src_pattern)
         if handler["is_dir"]:
@@ -1215,15 +1228,16 @@ def cmd_add(args):
             )
         else:
             print(
-                _c("Error:", _RED, sys.stderr)
-                + f" '{resource_type}' requires a name.",
+                _c("Error:", _RED, sys.stderr) + f" '{resource_type}' requires a name.",
                 file=sys.stderr,
             )
         sys.exit(1)
 
     # Resolve source path.
     if handler["needs_name"]:
-        src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"].replace("{name}", name))
+        src = os.path.join(
+            ADD_TEMPLATE_DIR, handler["template_src"].replace("{name}", name)
+        )
     else:
         src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"])
 
@@ -1364,7 +1378,10 @@ def build_parser():
         "init", help="Add missing agent context files to the current directory."
     )
     p_init.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard and overwrite existing files (alias for --force)."
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip interactive wizard and overwrite existing files (alias for --force).",
     )
     p_init.add_argument(
         "--force",
@@ -1389,7 +1406,10 @@ def build_parser():
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
     p_minimal.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard and overwrite existing files (alias for --force)."
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip interactive wizard and overwrite existing files (alias for --force).",
     )
     p_minimal.add_argument(
         "--force", action="store_true", help="Overwrite existing agentinit files."

@@ -206,9 +206,10 @@ class TestApplyUpdates:
         assert safe_defaults_idx is not None, "Should have ## Safe Defaults heading"
         assert style_idx is not None, "Should have ## Style heading"
         # Safe Defaults should be AFTER # Conventions and BEFORE ## Style
-        assert conventions_idx < safe_defaults_idx < style_idx, \
-            f"Safe Defaults should be between # Conventions and ## Style, got positions: " \
+        assert conventions_idx < safe_defaults_idx < style_idx, (
+            f"Safe Defaults should be between # Conventions and ## Style, got positions: "
             f"Conventions={conventions_idx}, SafeDefaults={safe_defaults_idx}, Style={style_idx}"
+        )
 
     def test_wizard_env_inserts_before_stack(self, tmp_path, monkeypatch):
         """Wizard environment should be inserted before ## Stack."""
@@ -480,10 +481,10 @@ class TestCmdInit:
         (tmp_path / "AGENTS.md").write_text("old content")
         parser = cli.build_parser()
         args = parser.parse_args(["init", "--yes"])
-        
+
         # Test the direct mapping in argparse
         assert args.yes is True
-        
+
         # Test behavior inside cmd_init
         cli.cmd_init(args)
         assert "old content" not in (tmp_path / "AGENTS.md").read_text()
@@ -496,10 +497,10 @@ class TestCmdInit:
         (tmp_path / "AGENTS.md").write_text("old content")
         parser = cli.build_parser()
         args = parser.parse_args(["init", "-y"])
-        
+
         # Test the alias mapping in argparse
         assert args.yes is True
-        
+
         # Test behavior inside cmd_init
         cli.cmd_init(args)
         assert "old content" not in (tmp_path / "AGENTS.md").read_text()
@@ -780,7 +781,9 @@ class TestCmdStatus:
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
         # Inject TBD manually (templates no longer contain TBD by default)
-        (tmp_path / "AGENTS.md").write_text("# Agents\n\nSetup: TBD\n", encoding="utf-8")
+        (tmp_path / "AGENTS.md").write_text(
+            "# Agents\n\nSetup: TBD\n", encoding="utf-8"
+        )
         cli.cmd_status(make_status_args())
         out = capsys.readouterr().out
         assert "incomplete" in out
@@ -1187,10 +1190,10 @@ class TestCmdAdd:
 
         args = make_add_args()
         cli.cmd_add(args)
-        
+
         out = capsys.readouterr().err
         assert "already exists" in out
-        
+
         # ensure it didn't create in .agents/
         assert not (tmp_path / ".agents" / "skills" / "code-reviewer").exists()
 
@@ -1199,29 +1202,29 @@ class TestCmdAdd:
         monkeypatch.chdir(tmp_path)
         # Init base structure
         cli.cmd_init(make_init_args())
-        
+
         # Add mcp github
         args = make_add_args(type="mcp", name="github")
         cli.cmd_add(args)
-        
+
         # Read content
         content1 = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
         assert "- `.agents/mcp-github.md`" in content1
-        
+
         # Count occurrences
         count1 = content1.count("- `.agents/mcp-github.md`")
         assert count1 == 1
 
         # Delete the created file to force it to run again
         (tmp_path / ".agents" / "mcp-github.md").unlink()
-        
+
         # Add mcp github again
         cli.cmd_add(args)
-        
+
         # Read content again
         content2 = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
         count2 = content2.count("- `.agents/mcp-github.md`")
-        
+
         # Still only 1
         assert count2 == 1
 
@@ -1229,34 +1232,38 @@ class TestCmdAdd:
 class TestPrintNextSteps:
     def test_print_next_steps_with_tty_all_files(self, monkeypatch, capsys, tmp_path):
         import sys
+
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
         from agentinit import cli
-        
+
         # Create all dummy files/dirs
         (tmp_path / "AGENTS.md").touch()
         (tmp_path / "CLAUDE.md").touch()
         (tmp_path / "GEMINI.md").touch()
         (tmp_path / "docs").mkdir()
         (tmp_path / ".agents").mkdir()
-        
+
         cli._print_next_steps(str(tmp_path))
         out, _ = capsys.readouterr()
         assert "Some agents only read tracked files." in out
         assert "git add AGENTS.md CLAUDE.md GEMINI.md docs/ .agents/" in out
 
-    def test_print_next_steps_with_tty_partial_files(self, monkeypatch, capsys, tmp_path):
+    def test_print_next_steps_with_tty_partial_files(
+        self, monkeypatch, capsys, tmp_path
+    ):
         import sys
+
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
         from agentinit import cli
-        
+
         # Create only some dummy files/dirs
         (tmp_path / "AGENTS.md").touch()
         (tmp_path / "CLAUDE.md").touch()
         (tmp_path / "docs").mkdir()
         # Missing GEMINI.md and .agents/
-        
+
         cli._print_next_steps(str(tmp_path))
         out, _ = capsys.readouterr()
         assert "Some agents only read tracked files." in out
@@ -1266,12 +1273,13 @@ class TestPrintNextSteps:
 
     def test_print_next_steps_without_tty(self, monkeypatch, capsys, tmp_path):
         import sys
+
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
         from agentinit import cli
-        
+
         (tmp_path / "AGENTS.md").touch()
-        
+
         cli._print_next_steps(str(tmp_path))
         out, _ = capsys.readouterr()
         assert "Some agents only read tracked files." not in out
@@ -1279,6 +1287,7 @@ class TestPrintNextSteps:
 
     def test_print_next_steps_no_files(self, monkeypatch, capsys, tmp_path):
         import sys
+
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
         from agentinit import cli
@@ -1418,9 +1427,7 @@ class TestCommandsMarkers:
         """--detect should update individual command lines within markers."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        (tmp_path / "go.mod").write_text(
-            "module myapp\n\ngo 1.22\n", encoding="utf-8"
-        )
+        (tmp_path / "go.mod").write_text("module myapp\n\ngo 1.22\n", encoding="utf-8")
         args = make_init_args(detect=True)
         cli.apply_updates(str(tmp_path), args)
 
@@ -1440,7 +1447,9 @@ class TestWizardPurposeSkip:
         """--purpose should not trigger the wizard even on a TTY."""
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-        monkeypatch.setattr(sys, "argv", ["agentinit", "init", "--purpose", "My project"])
+        monkeypatch.setattr(
+            sys, "argv", ["agentinit", "init", "--purpose", "My project"]
+        )
         # If wizard ran, it would call input() and fail since we don't mock it
         cli.main()
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")

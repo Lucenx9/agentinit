@@ -44,10 +44,17 @@ ALWAYS_HOT: set[str] = set(ALWAYS_HOT_FILES)
 ROUTER_FILES: set[str] = {"CLAUDE.md", "GEMINI.md"}
 
 # Directory names to skip during discovery.
-_EXCLUDE_DIRS: frozenset[str] = frozenset({
-    ".git", "node_modules", "dist", "build",
-    ".venv", "venv", "__pycache__",
-})
+_EXCLUDE_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "dist",
+        "build",
+        ".venv",
+        "venv",
+        "__pycache__",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -65,7 +72,7 @@ class Config:
     router_warn_lines: int = ROUTER_WARN_LINES
     # Ignore
     ignore_paths: set[str] = field(default_factory=set)  # fnmatch patterns → skip file
-    ignore_refs: set[str] = field(default_factory=set)   # skip these ref targets
+    ignore_refs: set[str] = field(default_factory=set)  # skip these ref targets
     # Discovery
     extra_globs: list[str] = field(default_factory=list)
     disable_default_discovery: bool = False
@@ -133,8 +140,8 @@ def load_config(root: Path, config_path: Path | None = None) -> Config:
 class Diagnostic:
     path: str
     message: str
-    hard: bool = False   # True → exit 1
-    lineno: int = 0      # 0 = not applicable
+    hard: bool = False  # True → exit 1
+    lineno: int = 0  # 0 = not applicable
 
 
 @dataclass
@@ -219,7 +226,9 @@ def _discover_context_files(root: Path, config: Config) -> tuple[list[Path], set
     found.sort(key=lambda p: _rel(p, root))
 
     if config.ignore_paths:
-        found = [f for f in found if not _is_ignored(_rel(f, root), config.ignore_paths)]
+        found = [
+            f for f in found if not _is_ignored(_rel(f, root), config.ignore_paths)
+        ]
         hot_rels = {r for r in hot_rels if not _is_ignored(r, config.ignore_paths)}
 
     return found, hot_rels
@@ -261,16 +270,23 @@ def _check_line_budget(
 
         if hot and count >= error_limit:
             result.diagnostics.append(
-                Diagnostic(rel, f"{count} lines (hard limit is {error_limit})", hard=True)
+                Diagnostic(
+                    rel, f"{count} lines (hard limit is {error_limit})", hard=True
+                )
             )
         elif count >= config.default_warn:
             if in_docs:
                 result.diagnostics.append(
-                    Diagnostic(rel, f"{count} lines — consider splitting (docs/ files never fail)")
+                    Diagnostic(
+                        rel,
+                        f"{count} lines — consider splitting (docs/ files never fail)",
+                    )
                 )
             elif hot:
                 result.diagnostics.append(
-                    Diagnostic(rel, f"{count} lines (soft warn at {config.default_warn})")
+                    Diagnostic(
+                        rel, f"{count} lines (soft warn at {config.default_warn})"
+                    )
                 )
             else:
                 result.diagnostics.append(
@@ -363,7 +379,9 @@ def _check_refs_in_file(
 
             if not target.exists():
                 result.diagnostics.append(
-                    Diagnostic(rel_name, f"broken ref → {ref}", hard=True, lineno=lineno)
+                    Diagnostic(
+                        rel_name, f"broken ref → {ref}", hard=True, lineno=lineno
+                    )
                 )
 
 
