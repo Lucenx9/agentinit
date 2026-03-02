@@ -24,6 +24,7 @@ agentinit init --minimal
 Instead of giant, token-heavy instruction files, `agentinit` implements a **hierarchical context strategy**. It creates a machine-readable map of your project and enforces autonomy via **Hardened Mandates**.
 
 ```text
+# Full scaffold (non-minimal)
 your-project/
 ├── llms.txt               # The "robots.txt" for AI (Discovery Index)
 ├── AGENTS.md              # The central hub with Hardened Mandates
@@ -33,6 +34,18 @@ your-project/
     ├── PROJECT.md         # What this project is
     ├── CONVENTIONS.md     # How to work in it
     └── STATE.md           # Persistent working memory (AI-readable)
+```
+
+With `agentinit init --minimal`, only these files are created:
+
+```text
+your-project/
+├── llms.txt
+├── AGENTS.md
+├── CLAUDE.md
+└── docs/
+    ├── PROJECT.md
+    └── CONVENTIONS.md
 ```
 
 **Next steps:** Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and fill them in.

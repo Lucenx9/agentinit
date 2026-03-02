@@ -98,6 +98,12 @@ MINIMAL_MANAGED_FILES = [
     "docs/CONVENTIONS.md",
 ]
 
+MINIMAL_TEMPLATE_OVERRIDES = {
+    "AGENTS.md": os.path.join("minimal", "AGENTS.md"),
+    "CLAUDE.md": os.path.join("minimal", "CLAUDE.md"),
+    "llms.txt": os.path.join("minimal", "llms.txt"),
+}
+
 
 # Files that `remove` will delete or archive.
 # .gitignore is intentionally excluded — it's a common file users may rely on.
@@ -151,7 +157,13 @@ def copy_template(dest, force=False, minimal=False):
     dest_real = os.path.realpath(dest)
     files_to_copy = MINIMAL_MANAGED_FILES if minimal else MANAGED_FILES
     for rel in files_to_copy:
-        src = os.path.join(TEMPLATE_DIR, rel)
+        src = None
+        if minimal and rel in MINIMAL_TEMPLATE_OVERRIDES:
+            override = os.path.join(TEMPLATE_DIR, MINIMAL_TEMPLATE_OVERRIDES[rel])
+            if os.path.exists(override):
+                src = override
+        if src is None:
+            src = os.path.join(TEMPLATE_DIR, rel)
         dst = os.path.join(dest, rel)
         if not os.path.exists(src):
             continue
@@ -830,6 +842,7 @@ def cmd_remove(args):
 def cmd_status(args):
     """Show the status of agentinit context files in the current directory."""
     dest = os.path.abspath(".")
+    minimal_mode = bool(getattr(args, "minimal", False))
 
     missing = []
     tbd = []
@@ -837,8 +850,11 @@ def cmd_status(args):
     broken_refs = []
     file_sizes = []
     files_to_check = (
-        MINIMAL_MANAGED_FILES if getattr(args, "minimal", False) else MANAGED_FILES
+        MINIMAL_MANAGED_FILES if minimal_mode else MANAGED_FILES
     )
+    minimal_ref_paths = {
+        os.path.normpath(p).replace("\\", "/") for p in MINIMAL_MANAGED_FILES
+    }
 
     print(f"{_c('Agent Context Status', _BOLD)}")
     print(f"Directory: {dest}\n")
@@ -946,6 +962,9 @@ def cmd_status(args):
                             )
                         ):
                             continue
+                        norm_p = os.path.normpath(p).replace("\\", "/")
+                        if minimal_mode and norm_p not in minimal_ref_paths:
+                            continue
 
                         target_path = os.path.join(dest_real, p)
                         if not _resolves_within(dest_real, target_path):
@@ -953,12 +972,14 @@ def cmd_status(args):
 
                         target_real = os.path.realpath(target_path)
                         if not os.path.exists(target_real):
-                            if p not in seen_broken:
-                                seen_broken.add(p)
-                                broken_refs.append(p)
-                                print(f"      {_c('x', _RED)} Broken reference: {p}")
+                            if norm_p not in seen_broken:
+                                seen_broken.add(norm_p)
+                                broken_refs.append(norm_p)
                                 print(
-                                    f"      {_c('Hint:', _CYAN)} Fix broken link: create {p} or remove the reference."
+                                    f"      {_c('x', _RED)} Broken reference: {norm_p}"
+                                )
+                                print(
+                                    f"      {_c('Hint:', _CYAN)} Fix broken link: create {norm_p} or remove the reference."
                                 )
 
             except (OSError, UnicodeDecodeError):
@@ -1326,7 +1347,7 @@ def build_parser():
     p_new.add_argument(
         "--minimal",
         action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
+        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_new.add_argument(
@@ -1353,7 +1374,7 @@ def build_parser():
     p_init.add_argument(
         "--minimal",
         action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, docs/PROJECT.md, and docs/CONVENTIONS.md.",
+        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
     )
     p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
     p_init.add_argument(

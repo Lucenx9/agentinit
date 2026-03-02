@@ -312,6 +312,7 @@ class TestCmdNew:
             "CLAUDE.md",
             "docs/CONVENTIONS.md",
             "docs/PROJECT.md",
+            "llms.txt",
         ]
         content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         # No purpose provided → template placeholder text stays as-is
@@ -382,7 +383,18 @@ class TestCmdInit:
             "CLAUDE.md",
             "docs/CONVENTIONS.md",
             "docs/PROJECT.md",
+            "llms.txt",
         ]
+        agents = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+        assert "docs/STATE.md" not in agents
+        assert "docs/TODO.md" not in agents
+        assert "docs/DECISIONS.md" not in agents
+        assert ".claude/rules/" not in agents
+        assert "docs/STATE.md" not in llms
+        assert "docs/TODO.md" not in llms
+        assert "docs/DECISIONS.md" not in llms
+        assert "GEMINI.md" not in llms
 
     def test_minimal_with_purpose(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -513,6 +525,7 @@ class TestCmdMinimal:
             "CLAUDE.md",
             "docs/CONVENTIONS.md",
             "docs/PROJECT.md",
+            "llms.txt",
         ]
 
     def test_with_purpose(self, tmp_path, monkeypatch):
@@ -800,14 +813,16 @@ class TestCmdStatus:
         assert "Action required" in out
 
     def test_minimal_checks_fewer_files(self, tmp_path, monkeypatch, capsys):
-        """--minimal only checks the 4 core files."""
+        """--minimal only checks the minimal core files."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
         self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
-        (tmp_path / "AGENTS.md").write_text("No broken links", encoding="utf-8")
-        cli.cmd_status(make_status_args(minimal=True))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(minimal=True, check=True))
+        assert exc.value.code == 0
         out = capsys.readouterr().out
         assert "Ready" in out
+        assert "Broken reference" not in out
 
     def test_unreadable_file(self, tmp_path, monkeypatch, capsys):
         """Files that can't be read are reported as unreadable."""
@@ -979,6 +994,9 @@ class TestTemplatePackaging:
         ".contextlintrc.json",
         "AGENTS.md",
         "CLAUDE.md",
+        "minimal/AGENTS.md",
+        "minimal/CLAUDE.md",
+        "minimal/llms.txt",
         "docs/PROJECT.md",
         "docs/CONVENTIONS.md",
     ]
