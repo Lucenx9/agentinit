@@ -176,6 +176,7 @@ pipx upgrade agentinit
 
 ```sh
 pip install -e . --group dev
+python3 -m ruff check agentinit tests cli
 python3 -m pytest tests/ -v
 ```
 
