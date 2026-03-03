@@ -254,6 +254,16 @@ class TestApplyUpdates:
         content = (tmp_path / "docs" / "CONVENTIONS.md").read_text(encoding="utf-8")
         assert content.count("## Safe Defaults") == 1
 
+    def test_non_english_purpose_warns(self, tmp_path, capsys):
+        cli.copy_template(str(tmp_path))
+        args = make_args(
+            purpose="Una semplice API REST per gestire todo list con FastAPI + SQLite",
+            prompt=False,
+        )
+        cli.apply_updates(str(tmp_path), args)
+        err = capsys.readouterr().err
+        assert "appears non-English" in err
+
 
 class TestRefreshLlms:
     def test_generates_enriched_llms_from_existing_files(self, tmp_path, monkeypatch):
@@ -1238,6 +1248,31 @@ class TestDetectManifests:
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "- **Runtime:** (not configured)" in content
         assert "- Setup: (not configured)" in content
+
+    def test_detect_from_purpose_fastapi_sqlite_prefills_project_and_conventions(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        args = make_init_args(
+            detect=True,
+            purpose="Build a REST API for todos with FastAPI and SQLite",
+        )
+        cli.apply_updates(str(tmp_path), args)
+
+        project = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- **Language(s):** Python" in project
+        assert "- **Runtime:** Python 3.12" in project
+        assert "- **Framework(s):** FastAPI + Uvicorn" in project
+        assert "- **Storage/Infra:** SQLite" in project
+        assert "- Run: uvicorn main:app --reload" in project
+
+        conventions = (tmp_path / "docs" / "CONVENTIONS.md").read_text(
+            encoding="utf-8"
+        )
+        assert "Ruff (`ruff check .` + `ruff format .`)" in conventions
+        assert "pytest" in conventions
 
 
 # ---------------------------------------------------------------------------

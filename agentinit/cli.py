@@ -243,6 +243,125 @@ def copy_template(dest, force=False, minimal=False):
     return copied, skipped
 
 
+_PURPOSE_PLACEHOLDER = "Describe what this project is for and expected outcomes."
+
+
+def _extract_purpose_text(content):
+    """Extract Purpose text from docs/PROJECT.md content."""
+    for pattern in (r"^\*\*Purpose:\*\*\s*(.+)$", r"^Purpose:\s*(.+)$"):
+        match = re.search(pattern, content, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _purpose_seems_non_english(text):
+    """Best-effort heuristic to flag non-English purpose text."""
+    if not text:
+        return False
+    tokens = {tok for tok in re.findall(r"[a-zA-Z]+", text.lower()) if len(tok) >= 2}
+    italian_markers = {
+        "una",
+        "uno",
+        "semplice",
+        "gestire",
+        "progetto",
+        "applicazione",
+        "elenco",
+        "lista",
+        "con",
+        "per",
+        "senza",
+        "delle",
+        "degli",
+        "della",
+        "dello",
+    }
+    return len(tokens.intersection(italian_markers)) >= 3
+
+
+def _detect_from_purpose(content):
+    """Infer baseline stack/commands from Purpose when manifests are missing."""
+    purpose = _extract_purpose_text(content)
+    if not purpose or purpose == _PURPOSE_PLACEHOLDER:
+        return {}, {}
+
+    lower = purpose.lower()
+    stack_updates = {}
+    cmd_updates = {}
+
+    mentions_python = any(
+        term in lower for term in ("python", "fastapi", "flask", "django")
+    )
+    if mentions_python:
+        stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Python"
+        stack_updates["- **Runtime:** (not configured)"] = "- **Runtime:** Python 3.12"
+        cmd_updates["- Setup: (not configured)"] = "- Setup: pip install -e ."
+        cmd_updates["- Test: (not configured)"] = "- Test: pytest -q"
+        cmd_updates["- Lint/Format: (not configured)"] = "- Lint/Format: ruff check ."
+
+    if "fastapi" in lower:
+        stack_updates["- **Framework(s):** (not configured)"] = (
+            "- **Framework(s):** FastAPI + Uvicorn"
+        )
+        cmd_updates["- Run: (not configured)"] = "- Run: uvicorn main:app --reload"
+    elif "django" in lower:
+        stack_updates["- **Framework(s):** (not configured)"] = "- **Framework(s):** Django"
+        cmd_updates["- Run: (not configured)"] = "- Run: python manage.py runserver"
+    elif "flask" in lower:
+        stack_updates["- **Framework(s):** (not configured)"] = "- **Framework(s):** Flask"
+        cmd_updates["- Run: (not configured)"] = (
+            "- Run: flask --app main.py run --debug"
+        )
+
+    if "sqlite" in lower:
+        stack_updates["- **Storage/Infra:** (not configured)"] = (
+            "- **Storage/Infra:** SQLite"
+        )
+    elif "postgres" in lower or "postgresql" in lower:
+        stack_updates["- **Storage/Infra:** (not configured)"] = (
+            "- **Storage/Infra:** PostgreSQL"
+        )
+    elif "mysql" in lower:
+        stack_updates["- **Storage/Infra:** (not configured)"] = (
+            "- **Storage/Infra:** MySQL"
+        )
+
+    return stack_updates, cmd_updates
+
+
+def _run_detect_conventions(project_content, conventions_content):
+    """Fill conventions placeholders with stack-aware defaults."""
+    lower = project_content.lower()
+    is_python = "- **language(s):** python" in lower
+    has_fastapi = "fastapi" in lower
+    if not is_python:
+        return conventions_content
+
+    replacements = {
+        "- **Formatting standard:** (not configured)": "- **Formatting standard:** Ruff (`ruff check .` + `ruff format .`)",
+        "- **Commenting expectations:** (not configured)": "- **Commenting expectations:** Docstrings for public modules and API surface; comments only for non-obvious decisions.",
+        "- **Files/directories:** (not configured)": "- **Files/directories:** `snake_case` for files/modules, grouped by feature/domain.",
+        "- **Variables/functions/types:** (not configured)": "- **Variables/functions/types:** `snake_case` for variables/functions, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.",
+        "- **Branch naming:** (not configured)": "- **Branch naming:** `feature/<scope>`, `fix/<scope>`, `chore/<scope>`.",
+        "- **Required test types:** (not configured)": "- **Required test types:** Unit tests with `pytest`; add integration/API tests for behavior-critical flows.",
+        "- **Minimum coverage/gates:** (not configured)": "- **Minimum coverage/gates:** Tests must pass in CI before merge.",
+        "- **Test data/fixtures:** (not configured)": "- **Test data/fixtures:** Reuse fixtures from `tests/conftest.py`; keep fixture scope minimal.",
+        "- **Commit message format:** (not configured)": "- **Commit message format:** Conventional Commits (`feat:`, `fix:`, `chore:`).",
+        "- **PR requirements/reviews:** (not configured)": "- **PR requirements/reviews:** Green CI and at least one reviewer approval.",
+        "- **Merge strategy:** (not configured)": "- **Merge strategy:** Squash merge.",
+    }
+    if has_fastapi:
+        replacements["- **Required test types:** (not configured)"] = (
+            "- **Required test types:** Unit tests with `pytest` plus API integration tests for endpoints."
+        )
+
+    updated = conventions_content
+    for old, new in replacements.items():
+        updated = updated.replace(old, new)
+    return updated
+
+
 def _run_detect(dest, project_path, content):
     """Detect stack and commands from manifests and return updated content."""
     import json
@@ -428,6 +547,12 @@ def _run_detect(dest, project_path, content):
                     )
             except Exception:
                 pass
+
+    purpose_stack_updates, purpose_cmd_updates = _detect_from_purpose(content)
+    for key, value in purpose_stack_updates.items():
+        stack_updates.setdefault(key, value)
+    for key, value in purpose_cmd_updates.items():
+        cmd_updates.setdefault(key, value)
 
     for k, v in stack_updates.items():
         content = content.replace(k, v)
@@ -777,6 +902,14 @@ def apply_updates(dest, args):
         constraints = ""
         commands = ""
 
+    if purpose and _purpose_seems_non_english(purpose):
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + " --purpose appears non-English; keep docs/* in English when possible.",
+            file=sys.stderr,
+        )
+
+    project_content = ""
     project_path = os.path.join(dest, "docs", "PROJECT.md")
     if not os.path.isfile(project_path):
         print(
@@ -789,10 +922,7 @@ def apply_updates(dest, args):
             content = f.read()
 
         if purpose:
-            content = content.replace(
-                "Describe what this project is for and expected outcomes.",
-                purpose,
-            )
+            content = content.replace(_PURPOSE_PLACEHOLDER, purpose)
 
         if wizard_run:
             if env:
@@ -819,6 +949,7 @@ def apply_updates(dest, args):
 
         with open(project_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
+        project_content = content
 
         if not wizard_run and "(not configured)" in content:
             print("Run with --prompt to fill interactively.")
@@ -846,6 +977,16 @@ def apply_updates(dest, args):
                     conv_content = safe_defaults + conv_content
                 with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(conv_content)
+
+    if getattr(args, "detect", False):
+        conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
+        if os.path.isfile(conv_path) and project_content:
+            with open(conv_path, "r", encoding="utf-8") as f:
+                conv_content = f.read()
+            conv_updated = _run_detect_conventions(project_content, conv_content)
+            if conv_updated != conv_content:
+                with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(conv_updated)
 
     refresh_llms_txt(dest)
 
