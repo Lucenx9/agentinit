@@ -1009,6 +1009,7 @@ def cmd_status(args):
 
     # --- Context checks (contextlint) ---
     contextlint_hard = False
+    contextlint_failed = False
     try:
         from agentinit.contextlint_adapter import get_checks_module
 
@@ -1034,8 +1035,14 @@ def cmd_status(args):
             )
             if cl_hards:
                 contextlint_hard = True
-    except Exception:
-        pass
+    except Exception as e:
+        contextlint_failed = True
+        contextlint_hard = True
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + f" contextlint checks unavailable: {e}",
+            file=sys.stderr,
+        )
 
     print()
     if missing or tbd or hard_violations or broken_refs or contextlint_hard:
@@ -1048,7 +1055,9 @@ def cmd_status(args):
             issues.append(f"{len(hard_violations)} too large")
         if broken_refs:
             issues.append(f"{len(broken_refs)} broken refs")
-        if contextlint_hard:
+        if contextlint_failed:
+            issues.append("contextlint unavailable")
+        elif contextlint_hard:
             issues.append("contextlint errors")
 
         print(f"{_c('Top offenders:', _YELLOW)}")
@@ -1229,6 +1238,13 @@ def cmd_add(args):
     # Validate name requirement.
     name = args.name
     available = _list_available(resource_type) if handler["needs_name"] else []
+    if resource_type == "soul" and not name:
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + " 'soul' requires a persona name. Example: agentinit add soul \"YourAgentName\"",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     if handler["needs_name"] and not name:
         if available:
             print(
@@ -1330,15 +1346,26 @@ def cmd_add(args):
 
     # Copy.
     os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.exists(dst) and args.force:
+        try:
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            else:
+                os.remove(dst)
+        except OSError as e:
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" failed to overwrite existing path: {os.path.relpath(dst, dest)} ({e})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     if handler["is_dir"]:
-        if os.path.exists(dst) and args.force:
-            shutil.rmtree(dst)
         shutil.copytree(src, dst)
     else:
         shutil.copy2(src, dst)
 
     # Replace {{NAME}} placeholder in soul template.
-    if resource_type == "soul" and name:
+    if resource_type == "soul":
         with open(dst, "r", encoding="utf-8") as f:
             content = f.read()
         content = content.replace("{{NAME}}", name)

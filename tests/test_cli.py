@@ -820,6 +820,25 @@ class TestCmdStatus:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 1
 
+    def test_check_exits_1_when_contextlint_unavailable(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """--check should fail closed when contextlint cannot be loaded."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+
+        def _boom():
+            raise RuntimeError("simulated contextlint failure")
+
+        monkeypatch.setattr("agentinit.contextlint_adapter.get_checks_module", _boom)
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "contextlint checks unavailable" in err
+
     def test_check_exits_0_when_ready(self, tmp_path, monkeypatch, capsys):
         """--check should exit with code 0 when everything is filled."""
         monkeypatch.chdir(tmp_path)
@@ -1284,6 +1303,70 @@ class TestCmdAdd:
             cli.cmd_add(args)
         assert exc.value.code == 1
         assert not (tmp_path / ".agents").exists()
+
+    def test_add_skill_force_overwrites_existing_file(self, tmp_path, monkeypatch):
+        """--force should replace a colliding file path with the skill directory."""
+        monkeypatch.chdir(tmp_path)
+        target = tmp_path / ".agents" / "skills" / "code-reviewer"
+        target.parent.mkdir(parents=True)
+        target.write_text("placeholder", encoding="utf-8")
+
+        args = make_add_args(type="skill", name="code-reviewer", force=True)
+        cli.cmd_add(args)
+
+        assert target.is_dir()
+        assert (target / "SKILL.md").is_file()
+
+    def test_add_mcp_force_overwrites_existing_directory(self, tmp_path, monkeypatch):
+        """--force should replace a colliding directory path with the MCP file."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        target = tmp_path / ".agents" / "mcp-github.md"
+        target.mkdir(parents=True)
+        (target / "placeholder.txt").write_text("old", encoding="utf-8")
+
+        args = make_add_args(type="mcp", name="github", force=True)
+        cli.cmd_add(args)
+
+        assert target.is_file()
+        assert not (tmp_path / ".agents" / "mcp-github.md" / "github.md").exists()
+
+    def test_add_security_force_overwrites_existing_directory(self, tmp_path, monkeypatch):
+        """--force should replace a colliding directory path with the security file."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        target = tmp_path / ".agents" / "security.md"
+        target.mkdir(parents=True)
+        (target / "placeholder.txt").write_text("old", encoding="utf-8")
+
+        args = make_add_args(type="security", name=None, force=True)
+        cli.cmd_add(args)
+
+        assert target.is_file()
+        assert not (tmp_path / ".agents" / "security.md" / "security.md").exists()
+
+    def test_add_soul_requires_name(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        args = make_add_args(type="soul", name=None)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_add(args)
+        assert exc.value.code == 1
+        assert "requires a persona name" in capsys.readouterr().err
+
+    def test_add_soul_replaces_name_placeholder(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        args = make_add_args(type="soul", name="CodePilot")
+        cli.cmd_add(args)
+
+        content = (tmp_path / ".agents" / "soul.md").read_text(encoding="utf-8")
+        assert "{{NAME}}" not in content
+        assert "CodePilot" in content
 
 
 class TestPrintNextSteps:
