@@ -21,6 +21,18 @@ cd your-project
 agentinit init --minimal
 ```
 
+## 📘 Documentation
+
+Use the wiki for full, example-driven docs:
+
+- [Wiki Home](https://github.com/Lucenx9/agentinit/wiki)
+- [Quick Start](https://github.com/Lucenx9/agentinit/wiki/Quick-Start)
+- [Commands](https://github.com/Lucenx9/agentinit/wiki/Commands)
+- [Troubleshooting](https://github.com/Lucenx9/agentinit/wiki/Troubleshooting)
+- [FAQ](https://github.com/Lucenx9/agentinit/wiki/FAQ)
+
+`README.md` is the fast overview. The Wiki is the complete usage guide.
+
 ### What it does
 
 Instead of giant, token-heavy instruction files, `agentinit` implements a **hierarchical context strategy**. It creates a machine-readable map of your project and enforces autonomy via **Hardened Mandates**.
