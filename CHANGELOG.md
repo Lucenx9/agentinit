@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.5
+
+- Add optional purpose translation flow:
+  - new `--translate-purpose` flag for `new`, `init`, and `minimal`;
+  - auto-translate purpose to English for `docs/*` when `--detect` identifies Italian, Spanish, or French purpose text;
+  - preserve original non-English purpose for `llms.txt` summary while using English title.
+- Improve purpose-based Python setup detection:
+  - choose `uv sync` for `uv`/`uvicorn`/modern FastAPI wording;
+  - choose `poetry install` when purpose mentions Poetry;
+  - fallback to `pip install -e .`.
+- Add starter project scaffolding with `--skeleton fastapi`:
+  - copies `pyproject.toml`, `main.py`, and basic tests (`tests/conftest.py`, `tests/test_todos.py`);
+  - works after context scaffold in both `new` and `init` flows.
+- Commands block marker now includes an explicit managed-note comment for detect/prompt updates.
+- README updated with new flags and usage examples.
+
 ## 0.3.4
 
 - Supercharge `llms.txt` generation:
