@@ -544,16 +544,17 @@ def apply_updates(dest, args):
             )
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
-            if "# Conventions\n" in conv_content:
-                conv_content = conv_content.replace(
-                    "# Conventions\n",
-                    f"# Conventions\n\n{safe_defaults}",
-                    1,
-                )
-            else:
-                conv_content = safe_defaults + conv_content
-            with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
-                f.write(conv_content)
+            if "## Safe Defaults" not in conv_content:
+                if "# Conventions\n" in conv_content:
+                    conv_content = conv_content.replace(
+                        "# Conventions\n",
+                        f"# Conventions\n\n{safe_defaults}",
+                        1,
+                    )
+                else:
+                    conv_content = safe_defaults + conv_content
+                with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(conv_content)
 
 
 def write_todo(dest, force=False):
@@ -667,9 +668,18 @@ def cmd_new(args):
         sys.exit(1)
 
     # Create dir and copy template
-    os.makedirs(dest, exist_ok=True)
+    created_dest = False
+    if not os.path.exists(dest):
+        os.makedirs(dest)
+        created_dest = True
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
     if not copied and not skipped:
+        # Best-effort cleanup when this command created an empty project dir.
+        if created_dest and os.path.isdir(dest):
+            try:
+                os.rmdir(dest)
+            except OSError:
+                pass
         print(
             _c("Error:", _RED, sys.stderr)
             + " no template files copied. Installation may be corrupt.",
@@ -1218,8 +1228,8 @@ def cmd_add(args):
 
     # Validate name requirement.
     name = args.name
+    available = _list_available(resource_type) if handler["needs_name"] else []
     if handler["needs_name"] and not name:
-        available = _list_available(resource_type)
         if available:
             print(
                 _c("Error:", _RED, sys.stderr)
@@ -1232,6 +1242,14 @@ def cmd_add(args):
                 file=sys.stderr,
             )
         sys.exit(1)
+    if handler["needs_name"] and name not in available:
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + f" unknown {resource_type}: '{name}'."
+            + (f" Available: {', '.join(available)}" if available else ""),
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # Resolve source path.
     if handler["needs_name"]:
@@ -1240,10 +1258,17 @@ def cmd_add(args):
         )
     else:
         src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"])
+    add_template_root = os.path.realpath(ADD_TEMPLATE_DIR)
+    if not _resolves_within(add_template_root, src):
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + f" template path escapes add template directory: {name!r}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if handler["is_dir"]:
         if not os.path.isdir(src):
-            available = _list_available(resource_type)
             print(
                 _c("Error:", _RED, sys.stderr)
                 + f" unknown {resource_type}: '{name}'."
@@ -1253,7 +1278,6 @@ def cmd_add(args):
             sys.exit(1)
     else:
         if not os.path.isfile(src):
-            available = _list_available(resource_type)
             print(
                 _c("Error:", _RED, sys.stderr)
                 + f" unknown {resource_type}: '{name}'."
@@ -1277,6 +1301,23 @@ def cmd_add(args):
         # Check both locations for existence.
         elif alt_dst and os.path.exists(alt_dst) and not os.path.exists(dst):
             dst = alt_dst
+    dest_real = os.path.realpath(dest)
+    if not _resolves_within(dest_real, os.path.dirname(dst)) or not _resolves_within(
+        dest_real, dst
+    ):
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + f" destination path escapes project root: {os.path.relpath(dst, dest)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if os.path.lexists(dst) and os.path.islink(dst):
+        print(
+            _c("Warning:", _YELLOW, sys.stderr)
+            + f" destination is a symlink, skipping: {os.path.relpath(dst, dest)}",
+            file=sys.stderr,
+        )
+        return
 
     # Check if target already exists.
     if os.path.exists(dst) and not args.force:

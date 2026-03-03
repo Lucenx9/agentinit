@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.3
+
+- Harden `agentinit add` path handling:
+  - reject unknown/traversal-like resource names early;
+  - enforce source/destination path containment;
+  - skip symlink destinations safely.
+- Make `contextlint` config parsing resilient to invalid numeric values (fallback to defaults instead of crashing).
+- Prevent duplicate `Safe Defaults` insertion when rerunning the interactive wizard.
+- Avoid orphan project directories on `agentinit new` when templates are empty/corrupt.
+- README alignment fixes:
+  - correct `agentinit add --list` usage;
+  - clarify minimal vs full scaffold behavior;
+  - narrow Windsurf claim to discovery routing via `llms.txt`.
+
 ## 0.3.2
 
 - Adopt 2026 agentic best practices for templates and routing.

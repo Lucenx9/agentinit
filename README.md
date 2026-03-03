@@ -6,7 +6,7 @@
 
 Scaffold **hardened, router-first** context files so your AI coding agents stop guessing and start delivering.
 
-Pure Python standard library. No runtime dependencies. Generates 2026-ready manifests for **Claude Code**, **Cursor**, **Copilot**, **Gemini CLI**, and **Windsurf**.
+Pure Python standard library. No runtime dependencies. Generates 2026-ready manifests for **Claude Code**, **Cursor**, **Copilot**, and **Gemini CLI**. `llms.txt` also provides discovery-friendly routing for other tools (for example, **Windsurf**).
 
 ## 🚀 Start in 60 seconds
 
@@ -48,9 +48,11 @@ your-project/
     └── CONVENTIONS.md
 ```
 
+Minimal mode intentionally omits `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` to keep context lean. Use full `agentinit init` when you want persistent session memory files.
+
 **Next steps:** Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and fill them in.
 
-**Next session:** Your agent will find `llms.txt`, read your rules in `AGENTS.md`, and follow the mandates to autonomously maintain `docs/STATE.md` and `docs/TODO.md`.
+**Next session (full scaffold):** Your agent will find `llms.txt`, read your rules in `AGENTS.md`, and follow the mandates to autonomously maintain `docs/STATE.md` and `docs/TODO.md`.
 
 ### Troubleshooting: files not visible to your agent
 
@@ -91,8 +93,9 @@ Some agents only scan tracked files. If your agent says it can't find your conte
 Agents can do more than just read conventions. Inject modular, hardened resources directly into your project.
 
 ```sh
-# View available resources
-agentinit add --list
+# View available resources by type
+agentinit add skill --list
+agentinit add mcp --list
 
 # Add specific capabilities
 agentinit add skill code-reviewer

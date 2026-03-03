@@ -63,6 +63,14 @@ _EXCLUDE_DIRS: frozenset[str] = frozenset(
 _CONFIG_NAMES = (".contextlintrc.json", ".contextlintrc")
 
 
+def _to_int_or_default(value: object, default: int) -> int:
+    """Parse *value* as int; return *default* when invalid."""
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class Config:
     # Line budget
@@ -103,12 +111,23 @@ def load_config(root: Path, config_path: Path | None = None) -> Config:
     if is_nested:
         lb = data.get("line_budget", {})
         if isinstance(lb, dict):
-            cfg.default_warn = int(lb.get("default_warn", SOFT_WARN_LINES))
-            cfg.default_error = int(lb.get("default_error", HARD_FAIL_LINES))
-            cfg.router_warn_lines = int(lb.get("router_warn", ROUTER_WARN_LINES))
+            cfg.default_warn = _to_int_or_default(
+                lb.get("default_warn"), SOFT_WARN_LINES
+            )
+            cfg.default_error = _to_int_or_default(
+                lb.get("default_error"), HARD_FAIL_LINES
+            )
+            cfg.router_warn_lines = _to_int_or_default(
+                lb.get("router_warn"), ROUTER_WARN_LINES
+            )
             per_file = lb.get("per_file", {})
             if isinstance(per_file, dict):
-                cfg.per_file_error = {k: int(v) for k, v in per_file.items()}
+                parsed_per_file: dict[str, int] = {}
+                for k, v in per_file.items():
+                    parsed = _to_int_or_default(v, -1)
+                    if parsed >= 0:
+                        parsed_per_file[k] = parsed
+                cfg.per_file_error = parsed_per_file
         ig = data.get("ignore", {})
         if isinstance(ig, dict):
             cfg.ignore_paths = set(ig.get("paths", []))
@@ -121,9 +140,15 @@ def load_config(root: Path, config_path: Path | None = None) -> Config:
             cfg.disable_default_discovery = bool(disc.get("disable_defaults", False))
     else:
         # Legacy flat format: soft_warn_lines / hard_fail_lines / ignore (list).
-        cfg.default_warn = int(data.get("soft_warn_lines", SOFT_WARN_LINES))
-        cfg.default_error = int(data.get("hard_fail_lines", HARD_FAIL_LINES))
-        cfg.router_warn_lines = int(data.get("router_warn_lines", ROUTER_WARN_LINES))
+        cfg.default_warn = _to_int_or_default(
+            data.get("soft_warn_lines"), SOFT_WARN_LINES
+        )
+        cfg.default_error = _to_int_or_default(
+            data.get("hard_fail_lines"), HARD_FAIL_LINES
+        )
+        cfg.router_warn_lines = _to_int_or_default(
+            data.get("router_warn_lines"), ROUTER_WARN_LINES
+        )
         legacy_ignore = data.get("ignore", [])
         if isinstance(legacy_ignore, list):
             cfg.ignore_paths = set(legacy_ignore)

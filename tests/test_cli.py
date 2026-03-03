@@ -240,6 +240,20 @@ class TestApplyUpdates:
         assert "- No external API calls" in content
         assert "(document security constraints)" not in content
 
+    def test_wizard_safe_defaults_not_duplicated(self, tmp_path, monkeypatch):
+        """Running wizard multiple times should inject Safe Defaults only once."""
+        cli.copy_template(str(tmp_path))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+        args = make_args(prompt=True, purpose=None)
+        for purpose in ("First run", "Second run"):
+            inputs = iter([purpose, "", "", ""])
+            monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+            cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "CONVENTIONS.md").read_text(encoding="utf-8")
+        assert content.count("## Safe Defaults") == 1
+
 
 # ---------------------------------------------------------------------------
 # cmd_new
@@ -286,6 +300,16 @@ class TestCmdNew:
 
     def test_missing_template_no_orphan_dir(self, tmp_path, monkeypatch):
         monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))
+        args = make_args(name="newproj", dir=str(tmp_path))
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(args)
+        assert exc.value.code == 1
+        assert not (tmp_path / "newproj").exists()
+
+    def test_empty_template_no_orphan_dir(self, tmp_path, monkeypatch):
+        empty_template = tmp_path / "empty_template"
+        empty_template.mkdir()
+        monkeypatch.setattr(cli, "TEMPLATE_DIR", str(empty_template))
         args = make_args(name="newproj", dir=str(tmp_path))
         with pytest.raises(SystemExit) as exc:
             cli.cmd_new(args)
@@ -1165,6 +1189,19 @@ class TestCmdLint:
         assert isinstance(data["diagnostics"], list)
         assert isinstance(data["summary"]["total"], int)
 
+    def test_lint_invalid_config_does_not_crash(self, tmp_path, monkeypatch):
+        """Invalid numeric values in config should fall back to defaults."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+        (tmp_path / ".contextlintrc.json").write_text(
+            '{"line_budget": {"default_warn": "abc", "per_file": {"AGENTS.md": "oops"}}}',
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_lint(make_lint_args())
+        assert exc.value.code == 0
+
 
 # ---------------------------------------------------------------------------
 # cmd_add
@@ -1227,6 +1264,26 @@ class TestCmdAdd:
 
         # Still only 1
         assert count2 == 1
+
+    def test_add_skill_rejects_path_traversal_name(self, tmp_path, monkeypatch):
+        """Traversal-like skill names must be rejected before touching the project."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude" / "skills").mkdir(parents=True)
+        (tmp_path / ".claude" / "keep.txt").write_text("keep", encoding="utf-8")
+
+        args = make_add_args(type="skill", name="..", force=True)
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_add(args)
+        assert exc.value.code == 1
+        assert (tmp_path / ".claude" / "keep.txt").exists()
+
+    def test_add_mcp_rejects_path_traversal_name(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        args = make_add_args(type="mcp", name="../mcp/github")
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_add(args)
+        assert exc.value.code == 1
+        assert not (tmp_path / ".agents").exists()
 
 
 class TestPrintNextSteps:
