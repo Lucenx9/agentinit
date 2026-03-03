@@ -287,8 +287,10 @@ class TestRefreshLlms:
         assert "## Hardened Mandates" in llms
         assert "**YOU MUST ALWAYS**" in llms
         assert "**YOU MUST NEVER** skip unit tests." in llms
+        assert "(AGENTS.md#core-mandates)" in llms
         assert "## Skills & Routers" in llms
         assert "(.agents/skills/reviewer/SKILL.md)" in llms
+        assert "- [.agents/skills/](.agents/skills/)" in llms
 
     def test_marks_missing_key_files_for_minimal_profile(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -299,6 +301,32 @@ class TestRefreshLlms:
         assert "[docs/STATE.md](docs/STATE.md): Current State & Focus (missing in this profile)" in llms
         assert "[docs/TODO.md](docs/TODO.md): Pending Tasks (missing in this profile)" in llms
         assert "[docs/DECISIONS.md](docs/DECISIONS.md): Architectural Log (missing in this profile)" in llms
+        assert "- [No additional skills or routers configured](AGENTS.md)" in llms
+
+    def test_hardened_and_skills_sections_are_link_lists(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="Strict format check"))
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+        lines = llms.splitlines()
+
+        def section_lines(title):
+            start = lines.index(title) + 1
+            end = len(lines)
+            for i in range(start, len(lines)):
+                if lines[i].startswith("## "):
+                    end = i
+                    break
+            return [line for line in lines[start:end] if line.strip()]
+
+        hardened = section_lines("## Hardened Mandates")
+        skills = section_lines("## Skills & Routers")
+
+        assert hardened
+        assert skills
+        assert all(line.startswith("- [") for line in hardened)
+        assert all("](" in line for line in hardened)
+        assert all(line.startswith("- [") for line in skills)
+        assert all("](" in line for line in skills)
 
 
 # ---------------------------------------------------------------------------

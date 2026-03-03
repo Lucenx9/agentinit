@@ -550,6 +550,7 @@ def _extract_hardened_mandates(agents_path):
     """Extract MUST ALWAYS / MUST NEVER mandates from AGENTS.md."""
     mandates = []
     seen = set()
+    mandates_url = "AGENTS.md#core-mandates"
     if os.path.isfile(agents_path):
         with open(agents_path, "r", encoding="utf-8") as f:
             for raw_line in f:
@@ -560,13 +561,13 @@ def _extract_hardened_mandates(agents_path):
                     continue
                 if "MUST ALWAYS" not in clean and "MUST NEVER" not in clean:
                     continue
-                bullet = f"- {clean}"
+                bullet = f"- [{clean}]({mandates_url})"
                 if bullet not in seen:
                     seen.add(bullet)
                     mandates.append(bullet)
 
     if not mandates:
-        mandates.append("- (No explicit MUST ALWAYS/MUST NEVER mandates found in AGENTS.md)")
+        mandates.append("- [No explicit MUST ALWAYS/MUST NEVER mandates found](AGENTS.md)")
     return mandates
 
 
@@ -592,7 +593,7 @@ def _list_agents_entries(dest):
                 rel_dir = os.path.relpath(os.path.join(root, dirname), dest).replace(
                     os.sep, "/"
                 )
-                entries.append(f"- `{rel_dir}/`")
+                entries.append(f"- [{rel_dir}/]({rel_dir}/)")
             for filename in files:
                 rel_file = os.path.relpath(os.path.join(root, filename), dest).replace(
                     os.sep, "/"
@@ -600,7 +601,7 @@ def _list_agents_entries(dest):
                 entries.append(f"- [{filename}]({rel_file})")
 
     if not entries:
-        entries.append("- (No additional skills or routers configured in .agents/)")
+        entries.append("- [No additional skills or routers configured](AGENTS.md)")
     return entries
 
 
