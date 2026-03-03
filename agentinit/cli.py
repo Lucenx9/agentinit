@@ -7,9 +7,12 @@ import os
 import re
 import shutil
 import sys
+import unicodedata
 from datetime import date, datetime
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template")
+SKELETONS_DIR = os.path.join(TEMPLATE_DIR, "skeletons")
+SKELETON_CHOICES = ("fastapi",)
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +246,132 @@ def copy_template(dest, force=False, minimal=False):
     return copied, skipped
 
 
+def copy_skeleton(dest, skeleton, force=False):
+    """Copy a skeleton tree into *dest*. Skip existing files unless force is set."""
+    copied = []
+    skipped = []
+    skeleton_root = os.path.join(SKELETONS_DIR, skeleton)
+    if not os.path.isdir(skeleton_root):
+        print(
+            _c("Error:", _RED, sys.stderr) + f" unknown skeleton: {skeleton!r}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    dest_real = os.path.realpath(dest)
+    for root, _, files in os.walk(skeleton_root):
+        files.sort()
+        rel_root = os.path.relpath(root, skeleton_root)
+        for filename in files:
+            rel = os.path.normpath(
+                os.path.join(rel_root, filename)
+            ).replace("\\", "/")
+            if rel == ".":
+                rel = filename
+            src = os.path.join(root, filename)
+            dst = os.path.join(dest, rel)
+            if not _resolves_within(dest_real, os.path.dirname(dst)):
+                skipped.append(rel)
+                continue
+            if os.path.lexists(dst):
+                if os.path.islink(dst) or os.path.isdir(dst) or not force:
+                    skipped.append(rel)
+                    continue
+            if not _resolves_within(dest_real, dst):
+                skipped.append(rel)
+                continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            copied.append(rel)
+    return copied, skipped
+
+
 _PURPOSE_PLACEHOLDER = "Describe what this project is for and expected outcomes."
+_PURPOSE_ORIGINAL_MARKER_PREFIX = "<!-- agentinit:purpose-original:"
+_PURPOSE_ORIGINAL_MARKER_RE = re.compile(
+    r"^<!--\s*agentinit:purpose-original:\s*(.*?)\s*-->\s*$",
+    re.MULTILINE,
+)
+
+_LANGUAGE_MARKERS = {
+    "it": {
+        "una",
+        "uno",
+        "semplice",
+        "gestire",
+        "progetto",
+        "applicazione",
+        "elenco",
+        "lista",
+        "con",
+        "per",
+        "delle",
+        "degli",
+        "della",
+        "todo",
+    },
+    "es": {
+        "una",
+        "simple",
+        "proyecto",
+        "aplicacion",
+        "lista",
+        "tareas",
+        "gestionar",
+        "con",
+        "para",
+        "crear",
+        "servicio",
+    },
+    "fr": {
+        "une",
+        "simple",
+        "projet",
+        "application",
+        "liste",
+        "taches",
+        "gerer",
+        "avec",
+        "pour",
+        "service",
+    },
+}
+
+_PURPOSE_EXACT_TRANSLATIONS = {
+    "una semplice api rest per gestire todo list con fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
+    "una simple api rest para gestionar una lista de tareas con fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
+    "une api rest simple pour gerer une liste de taches avec fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
+}
+
+_ROMANCE_TO_ENGLISH_REPLACEMENTS = [
+    (r"\bapi rest\b", "REST API"),
+    (r"\bapplication\b", "application"),
+    (r"\baplicaci[oó]n\b", "application"),
+    (r"\bprojet\b", "project"),
+    (r"\bproyecto\b", "project"),
+    (r"\blista de tareas\b", "todo list"),
+    (r"\bliste de t[aâ]ches\b", "todo list"),
+    (r"\btodo list\b", "todo list"),
+    (r"\bavec\b", "with"),
+    (r"\bcon\b", "with"),
+    (r"\bpour\b", "to"),
+    (r"\bpara\b", "to"),
+    (r"\bper\b", "to"),
+    (r"\bg[ée]rer\b", "manage"),
+    (r"\bgestionar\b", "manage"),
+    (r"\bgestire\b", "manage"),
+    (r"\bune\b", "a"),
+    (r"\buna\b", "a"),
+    (r"\bun\b", "a"),
+    (r"\bsimple\b", "simple"),
+    (r"\bsemplice\b", "simple"),
+]
+
+
+def _ascii_fold(text):
+    """Lowercase text and strip diacritics for lightweight language heuristics."""
+    normalized = unicodedata.normalize("NFKD", text.lower())
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
 def _extract_purpose_text(content):
@@ -255,29 +383,100 @@ def _extract_purpose_text(content):
     return ""
 
 
-def _purpose_seems_non_english(text):
-    """Best-effort heuristic to flag non-English purpose text."""
+def _extract_purpose_original_marker(content):
+    """Return preserved non-English purpose, if present."""
+    match = _PURPOSE_ORIGINAL_MARKER_RE.search(content)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _set_purpose_original_marker(content, original_purpose):
+    """Insert or update the purpose-original marker right below Purpose."""
+    sanitized = re.sub(r"\s+", " ", original_purpose).replace("-->", "").strip()
+    marker = f"{_PURPOSE_ORIGINAL_MARKER_PREFIX} {sanitized} -->"
+    if _PURPOSE_ORIGINAL_MARKER_RE.search(content):
+        return _PURPOSE_ORIGINAL_MARKER_RE.sub(marker, content, count=1)
+
+    pattern = re.compile(r"^(\*\*Purpose:\*\*.+)$", re.MULTILINE)
+    if pattern.search(content):
+        return pattern.sub(rf"\1\n{marker}", content, count=1)
+    return content
+
+
+def _clear_purpose_original_marker(content):
+    """Remove any purpose-original marker from content."""
+    return _PURPOSE_ORIGINAL_MARKER_RE.sub("", content)
+
+
+def _replace_purpose_text(content, new_purpose):
+    """Replace Purpose value in PROJECT.md content."""
+    for pattern in (r"(\*\*Purpose:\*\*\s*)(.+)", r"(Purpose:\s*)(.+)"):
+        updated, count = re.subn(
+            pattern,
+            lambda m: f"{m.group(1)}{new_purpose}",
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count:
+            return updated
+    return content
+
+
+def _detect_purpose_language(text):
+    """Best-effort language detection for purpose text."""
     if not text:
-        return False
-    tokens = {tok for tok in re.findall(r"[a-zA-Z]+", text.lower()) if len(tok) >= 2}
-    italian_markers = {
-        "una",
-        "uno",
-        "semplice",
-        "gestire",
-        "progetto",
-        "applicazione",
-        "elenco",
-        "lista",
-        "con",
-        "per",
-        "senza",
-        "delle",
-        "degli",
-        "della",
-        "dello",
+        return "unknown"
+    folded = _ascii_fold(text)
+    tokens = {tok for tok in re.findall(r"[a-z]+", folded) if len(tok) >= 2}
+    if not tokens:
+        return "unknown"
+    scores = {
+        lang: len(tokens.intersection(markers))
+        for lang, markers in _LANGUAGE_MARKERS.items()
     }
-    return len(tokens.intersection(italian_markers)) >= 3
+    best_lang, best_score = max(scores.items(), key=lambda item: item[1])
+    if best_score >= 2:
+        return best_lang
+    return "en"
+
+
+def _purpose_seems_non_english(text):
+    """Backwards-compatible check for non-English purpose text."""
+    return _detect_purpose_language(text) in {"it", "es", "fr"}
+
+
+def _translate_text_to_english(text):
+    """Translate common Romance-language project phrasing to English."""
+    if not text:
+        return text
+    normalized = re.sub(r"\s+", " ", _ascii_fold(text.strip()))
+    if normalized in _PURPOSE_EXACT_TRANSLATIONS:
+        return _PURPOSE_EXACT_TRANSLATIONS[normalized]
+
+    translated = text
+    for pattern, repl in _ROMANCE_TO_ENGLISH_REPLACEMENTS:
+        translated = re.sub(pattern, repl, translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\s+", " ", translated).strip()
+    if not translated:
+        return text
+    return translated[0].upper() + translated[1:]
+
+
+def _infer_python_setup_command_from_purpose(purpose_text):
+    """Infer Python setup command from purpose phrasing."""
+    lower = purpose_text.lower()
+    if "poetry" in lower:
+        return "poetry install"
+    if (
+        re.search(r"\buv\b", lower)
+        or "uvicorn" in lower
+        or "fastapi moderno" in lower
+        or "modern fastapi" in lower
+    ):
+        return "uv sync"
+    return "pip install -e ."
 
 
 def _detect_from_purpose(content):
@@ -296,7 +495,8 @@ def _detect_from_purpose(content):
     if mentions_python:
         stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Python"
         stack_updates["- **Runtime:** (not configured)"] = "- **Runtime:** Python 3.12"
-        cmd_updates["- Setup: (not configured)"] = "- Setup: pip install -e ."
+        setup_cmd = _infer_python_setup_command_from_purpose(purpose)
+        cmd_updates["- Setup: (not configured)"] = f"- Setup: {setup_cmd}"
         cmd_updates["- Test: (not configured)"] = "- Test: pytest -q"
         cmd_updates["- Lint/Format: (not configured)"] = "- Lint/Format: ruff check ."
 
@@ -564,6 +764,7 @@ def _run_detect(dest, project_path, content):
 
 _COMMANDS_START = "<!-- agentinit:commands:start -->"
 _COMMANDS_END = "<!-- agentinit:commands:end -->"
+_COMMANDS_NOTE = "<!-- managed by agentinit --detect / --prompt -->"
 
 
 def _replace_commands_section(content, new_body):
@@ -572,7 +773,7 @@ def _replace_commands_section(content, new_body):
         re.escape(_COMMANDS_START) + r".*?" + re.escape(_COMMANDS_END),
         re.DOTALL,
     )
-    replacement = f"{_COMMANDS_START}\n{new_body}\n{_COMMANDS_END}"
+    replacement = f"{_COMMANDS_START}\n{_COMMANDS_NOTE}\n{new_body}\n{_COMMANDS_END}"
     new_content = pattern.sub(lambda m: replacement, content, count=1)
     return new_content
 
@@ -832,6 +1033,18 @@ def _render_llms_content(dest):
     project_path = _resolve_project_context_path(dest)
     project_name = _extract_project_name(dest, project_path)
     summary = _extract_project_summary(dest, project_path)
+    if os.path.isfile(project_path):
+        with open(project_path, "r", encoding="utf-8") as f:
+            project_content = f.read()
+        original_purpose = _extract_purpose_original_marker(project_content)
+        translated_purpose = _extract_purpose_text(project_content)
+        if (
+            original_purpose
+            and translated_purpose
+            and translated_purpose != _PURPOSE_PLACEHOLDER
+        ):
+            project_name = translated_purpose
+            summary = original_purpose
     key_files = _build_key_files_list(dest)
     mandates = _extract_hardened_mandates(os.path.join(dest, "AGENTS.md"))
     skills = _list_agents_entries(dest)
@@ -901,13 +1114,8 @@ def apply_updates(dest, args):
         env = ""
         constraints = ""
         commands = ""
-
-    if purpose and _purpose_seems_non_english(purpose):
-        print(
-            _c("Warning:", _YELLOW, sys.stderr)
-            + " --purpose appears non-English; keep docs/* in English when possible.",
-            file=sys.stderr,
-        )
+    translate_requested = bool(getattr(args, "translate_purpose", False))
+    translated_for_docs = False
 
     project_content = ""
     project_path = os.path.join(dest, "docs", "PROJECT.md")
@@ -923,6 +1131,9 @@ def apply_updates(dest, args):
 
         if purpose:
             content = content.replace(_PURPOSE_PLACEHOLDER, purpose)
+            content = _replace_purpose_text(content, purpose)
+            if _detect_purpose_language(purpose) == "en":
+                content = _clear_purpose_original_marker(content)
 
         if wizard_run:
             if env:
@@ -943,6 +1154,28 @@ def apply_updates(dest, args):
                     "- **Deadlines/Limits:** (document deadline constraints)"
                 )
                 content = content.replace(old_constraints, f"- {constraints}")
+
+        current_purpose = _extract_purpose_text(content)
+        current_lang = _detect_purpose_language(current_purpose)
+        should_translate = bool(
+            current_purpose
+            and current_purpose != _PURPOSE_PLACEHOLDER
+            and current_lang in {"it", "es", "fr"}
+            and (translate_requested or getattr(args, "detect", False))
+        )
+        if should_translate:
+            translated = _translate_text_to_english(current_purpose)
+            if translated and translated != current_purpose:
+                content = _replace_purpose_text(content, translated)
+                content = _set_purpose_original_marker(content, current_purpose)
+                translated_for_docs = True
+                print("Purpose translated to English for docs/*")
+        elif purpose and _purpose_seems_non_english(purpose):
+            print(
+                _c("Warning:", _YELLOW, sys.stderr)
+                + " --purpose appears non-English; keep docs/* in English when possible.",
+                file=sys.stderr,
+            )
 
         if getattr(args, "detect", False):
             content = _run_detect(dest, project_path, content)
@@ -984,6 +1217,17 @@ def apply_updates(dest, args):
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
             conv_updated = _run_detect_conventions(project_content, conv_content)
+            if translated_for_docs:
+                conv_updated = _translate_text_to_english(conv_updated)
+            if conv_updated != conv_content:
+                with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(conv_updated)
+    elif translated_for_docs:
+        conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
+        if os.path.isfile(conv_path):
+            with open(conv_path, "r", encoding="utf-8") as f:
+                conv_content = f.read()
+            conv_updated = _translate_text_to_english(conv_content)
             if conv_updated != conv_content:
                 with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(conv_updated)
@@ -1136,6 +1380,12 @@ def cmd_new(args):
 
     # Customize generated files
     apply_updates(dest, args)
+    skeleton_copied = []
+    skeleton_skipped = []
+    if getattr(args, "skeleton", None):
+        skeleton_copied, skeleton_skipped = copy_skeleton(
+            dest, args.skeleton, force=args.force
+        )
     if not args.minimal:
         write_todo(dest, force=args.force)
         write_decisions(dest, force=args.force)
@@ -1145,6 +1395,12 @@ def cmd_new(args):
         print(f"  Copied: {len(copied)} files")
     if skipped:
         print(f"  Skipped (already exist): {', '.join(skipped)}")
+    if skeleton_copied:
+        print(f"  Skeleton ({args.skeleton}): {len(skeleton_copied)} files")
+    if skeleton_skipped:
+        print(
+            f"  Skeleton skipped (already exist): {', '.join(sorted(skeleton_skipped))}"
+        )
     _print_next_steps(dest)
 
 
@@ -1175,6 +1431,12 @@ def cmd_init(args):
         sys.exit(1)
 
     apply_updates(dest, args)
+    skeleton_copied = []
+    skeleton_skipped = []
+    if getattr(args, "skeleton", None):
+        skeleton_copied, skeleton_skipped = copy_skeleton(
+            dest, args.skeleton, force=args.force
+        )
 
     if copied:
         print(f"{_c('Copied', _GREEN)} {len(copied)} files:")
@@ -1188,6 +1450,12 @@ def cmd_init(args):
         print("All agentinit files already present. Nothing to copy.")
     else:
         _print_next_steps(dest)
+    if skeleton_copied:
+        print(f"Skeleton ({args.skeleton}): copied {len(skeleton_copied)} files")
+    if skeleton_skipped:
+        print(
+            f"Skeleton ({args.skeleton}): skipped {len(skeleton_skipped)} file(s) (already exist)"
+        )
 
 
 def cmd_remove(args):
@@ -1887,6 +2155,16 @@ def build_parser():
         action="store_true",
         help="Auto-detect stack and commands from manifest files.",
     )
+    p_new.add_argument(
+        "--translate-purpose",
+        action="store_true",
+        help="Translate non-English Purpose text to English for docs/*.",
+    )
+    p_new.add_argument(
+        "--skeleton",
+        choices=SKELETON_CHOICES,
+        help="Copy starter boilerplate after context files (e.g. fastapi).",
+    )
 
     # agentinit init
     p_init = sub.add_parser(
@@ -1917,6 +2195,16 @@ def build_parser():
         action="store_true",
         help="Auto-detect stack and commands from manifest files.",
     )
+    p_init.add_argument(
+        "--translate-purpose",
+        action="store_true",
+        help="Translate non-English Purpose text to English for docs/*.",
+    )
+    p_init.add_argument(
+        "--skeleton",
+        choices=SKELETON_CHOICES,
+        help="Copy starter boilerplate after context files (e.g. fastapi).",
+    )
 
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
@@ -1937,6 +2225,16 @@ def build_parser():
         "--detect",
         action="store_true",
         help="Auto-detect stack and commands from manifest files.",
+    )
+    p_minimal.add_argument(
+        "--translate-purpose",
+        action="store_true",
+        help="Translate non-English Purpose text to English for docs/*.",
+    )
+    p_minimal.add_argument(
+        "--skeleton",
+        choices=SKELETON_CHOICES,
+        help="Copy starter boilerplate after context files (e.g. fastapi).",
     )
 
     # agentinit remove

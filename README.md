@@ -184,6 +184,21 @@ After running `agentinit init`, paste this to your favorite AI agent:
 - `--detect` — Auto-detect stack and commands from package files (e.g., `package.json`, `pyproject.toml`).
 - `--yes` / `-y` — Runs non-interactively and skips the wizard.
 - `--purpose "<text>"` — Prefill the project purpose non-interactively.
+- `--translate-purpose` — Translate non-English purpose text to English in `docs/*` (and keep original summary in `llms.txt`).
+- `--skeleton fastapi` — Copy a minimal FastAPI + SQLite boilerplate (`pyproject.toml`, `main.py`, tests) after context files.
+
+### Examples
+
+```sh
+# Existing repo: detect + auto-translate purpose into English docs
+agentinit init --detect --purpose "Una semplice API REST per gestire todo list con FastAPI + SQLite"
+
+# Force translation even without detect
+agentinit init --purpose "Une API REST simple pour gerer une liste de taches" --translate-purpose
+
+# New project with context files + FastAPI starter skeleton
+agentinit new demo-fastapi --detect --purpose "Modern FastAPI API with SQLite" --skeleton fastapi
+```
 
 </details>
 

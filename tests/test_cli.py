@@ -25,13 +25,22 @@ def make_args(**kwargs):
         "purpose": None,
         "prompt": False,
         "minimal": False,
+        "translate_purpose": False,
+        "skeleton": None,
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
 
 def make_init_args(**kwargs):
-    defaults = {"force": False, "minimal": False, "purpose": None, "prompt": False}
+    defaults = {
+        "force": False,
+        "minimal": False,
+        "purpose": None,
+        "prompt": False,
+        "translate_purpose": False,
+        "skeleton": None,
+    }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
@@ -264,6 +273,42 @@ class TestApplyUpdates:
         err = capsys.readouterr().err
         assert "appears non-English" in err
 
+    def test_translate_purpose_flag_translates_project_and_llms(self, tmp_path, capsys):
+        cli.copy_template(str(tmp_path))
+        args = make_args(
+            purpose="Una semplice API REST per gestire todo list con FastAPI + SQLite",
+            prompt=False,
+            translate_purpose=True,
+        )
+        cli.apply_updates(str(tmp_path), args)
+
+        project = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert (
+            "**Purpose:** A simple REST API to manage a todo list with FastAPI + SQLite"
+            in project
+        )
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+        assert llms.splitlines()[0] == (
+            "# A simple REST API to manage a todo list with FastAPI + SQLite"
+        )
+        assert (
+            llms.splitlines()[1]
+            == "> Una semplice API REST per gestire todo list con FastAPI + SQLite"
+        )
+        out = capsys.readouterr().out
+        assert "Purpose translated to English for docs/*" in out
+
+    def test_detect_auto_translates_romance_purpose(self, tmp_path):
+        cli.copy_template(str(tmp_path))
+        args = make_args(
+            purpose="Une API REST simple pour gerer une liste de taches avec FastAPI + SQLite",
+            prompt=False,
+            detect=True,
+        )
+        cli.apply_updates(str(tmp_path), args)
+        project = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "A simple REST API to manage a todo list with FastAPI + SQLite" in project
+
 
 class TestRefreshLlms:
     def test_generates_enriched_llms_from_existing_files(self, tmp_path, monkeypatch):
@@ -455,6 +500,20 @@ class TestCmdNew:
         content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "Custom Purpose" in content
         assert "Describe what this project is for" not in content
+
+    def test_new_with_fastapi_skeleton_copies_boilerplate(self, tmp_path):
+        args = make_args(
+            name="api-proj",
+            dir=str(tmp_path),
+            skeleton="fastapi",
+            yes=True,
+        )
+        cli.cmd_new(args)
+        proj = tmp_path / "api-proj"
+        assert (proj / "pyproject.toml").exists()
+        assert (proj / "main.py").exists()
+        assert (proj / "tests" / "conftest.py").exists()
+        assert (proj / "tests" / "test_todos.py").exists()
 
     def test_yes_overrides_prompt(self, tmp_path, monkeypatch):
         """--yes disables --prompt so no interactive wizard runs."""
@@ -1158,6 +1217,10 @@ class TestTemplatePackaging:
         "minimal/AGENTS.md",
         "minimal/CLAUDE.md",
         "minimal/llms.txt",
+        "skeletons/fastapi/pyproject.toml",
+        "skeletons/fastapi/main.py",
+        "skeletons/fastapi/tests/conftest.py",
+        "skeletons/fastapi/tests/test_todos.py",
         "docs/PROJECT.md",
         "docs/CONVENTIONS.md",
     ]
@@ -1273,6 +1336,32 @@ class TestDetectManifests:
         )
         assert "Ruff (`ruff check .` + `ruff format .`)" in conventions
         assert "pytest" in conventions
+
+    def test_detect_from_purpose_prefers_uv_setup(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        args = make_init_args(
+            detect=True,
+            purpose="FastAPI moderno con uv e uvicorn",
+        )
+        cli.apply_updates(str(tmp_path), args)
+
+        project = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- Setup: uv sync" in project
+
+    def test_detect_from_purpose_prefers_poetry_setup(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        args = make_init_args(
+            detect=True,
+            purpose="Python service with poetry and FastAPI",
+        )
+        cli.apply_updates(str(tmp_path), args)
+
+        project = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+        assert "- Setup: poetry install" in project
 
 
 # ---------------------------------------------------------------------------
@@ -1713,6 +1802,7 @@ class TestCommandsMarkers:
 
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "<!-- agentinit:commands:start -->" in content
+        assert "<!-- managed by agentinit --detect / --prompt -->" in content
         assert "- Test: go test ./..." in content
         assert "<!-- agentinit:commands:end -->" in content
 

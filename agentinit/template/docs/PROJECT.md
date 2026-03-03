@@ -12,6 +12,7 @@
 ## Commands
 
 <!-- agentinit:commands:start -->
+<!-- managed by agentinit --detect / --prompt -->
 - Setup: (not configured)
 - Build: (not configured)
 - Test: (not configured)
