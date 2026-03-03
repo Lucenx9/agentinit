@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.4
+
+- Supercharge `llms.txt` generation:
+  - automatic project summary now falls back to manifest detection (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`) when project context is missing/unfilled;
+  - `## Key Files` keeps canonical links and profile-aware missing markers;
+  - `## Hardened Mandates` now prioritizes the most critical `MUST ALWAYS` / `MUST NEVER` rules from `AGENTS.md`;
+  - `## Skills & Routers` lists all `.agents/` resources with full relative links.
+- Keep fast refresh UX: `agentinit refresh-llms` remains sub-second and tested.
+- README update: explicitly documents that `llms.txt` now includes auto-summary and mandates.
+
 ## 0.3.3
 
 - Harden `agentinit add` path handling:

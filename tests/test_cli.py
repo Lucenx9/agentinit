@@ -328,6 +328,20 @@ class TestRefreshLlms:
         assert all(line.startswith("- [") for line in skills)
         assert all("](" in line for line in skills)
 
+    def test_summary_falls_back_to_manifest_detection(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\nname = 'demo-tool'\nrequires-python = '>=3.11'\n",
+            encoding="utf-8",
+        )
+        cli.cmd_init(make_init_args(minimal=True))
+
+        elapsed = cli.refresh_llms_txt(str(tmp_path))
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+
+        assert elapsed < 1.0
+        assert llms.splitlines()[1] == "> Python >=3.11 project."
+
 
 # ---------------------------------------------------------------------------
 # cmd_new

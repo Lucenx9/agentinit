@@ -460,6 +460,19 @@ _LLMS_KEY_FILES = [
     ("docs/TODO.md", "Pending Tasks"),
     ("docs/DECISIONS.md", "Architectural Log"),
 ]
+_LLMS_MAX_MANDATES = 8
+
+
+def _resolve_project_context_path(dest):
+    """Resolve project context file preferring docs/PROJECT.md, then PROJECT.md."""
+    candidates = [
+        os.path.join(dest, "docs", "PROJECT.md"),
+        os.path.join(dest, "PROJECT.md"),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return candidates[0]
 
 
 def _extract_project_name(dest, project_path):
@@ -520,10 +533,59 @@ def _extract_stack_field(content, field_name):
     return value
 
 
-def _extract_project_summary(project_path):
-    """Return a one-line project summary from docs/PROJECT.md."""
+def _detect_project_summary(dest):
+    """Infer a one-line summary from common project manifests."""
+    # Prefer pyproject.toml when available.
+    pyproject_path = os.path.join(dest, "pyproject.toml")
+    if os.path.isfile(pyproject_path):
+        requires_python = ""
+        try:
+            import tomllib
+
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+            project = data.get("project")
+            if isinstance(project, dict):
+                requires_python = str(project.get("requires-python") or "").strip()
+        except Exception:
+            try:
+                with open(pyproject_path, "r", encoding="utf-8") as f:
+                    text = f.read()
+                match = re.search(
+                    r'^\s*requires-python\s*=\s*["\']([^"\']+)["\']\s*$',
+                    text,
+                    re.MULTILINE,
+                )
+                if match:
+                    requires_python = match.group(1).strip()
+            except Exception:
+                requires_python = ""
+
+        runtime = "Python"
+        if requires_python:
+            runtime = f"Python {requires_python}"
+        return f"{runtime} project."
+
+    package_json_path = os.path.join(dest, "package.json")
+    if os.path.isfile(package_json_path):
+        return "Node.js project."
+
+    go_mod_path = os.path.join(dest, "go.mod")
+    if os.path.isfile(go_mod_path):
+        return "Go project."
+
+    cargo_path = os.path.join(dest, "Cargo.toml")
+    if os.path.isfile(cargo_path):
+        return "Rust project."
+
+    return ""
+
+
+def _extract_project_summary(dest, project_path):
+    """Return a one-line project summary from PROJECT.md or manifest detection."""
     if not os.path.isfile(project_path):
-        return _LLMS_DEFAULT_SUMMARY
+        detected = _detect_project_summary(dest)
+        return detected or _LLMS_DEFAULT_SUMMARY
 
     with open(project_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -543,16 +605,44 @@ def _extract_project_summary(project_path):
     if parts:
         return f"{' | '.join(parts)} project."
 
+    detected = _detect_project_summary(dest)
+    if detected:
+        return detected
+
     return _LLMS_DEFAULT_SUMMARY
+
+
+def _mandate_priority(line):
+    """Score mandates so llms.txt keeps the most critical constraints first."""
+    score = 0
+    upper = line.upper()
+    if "YOU MUST ALWAYS" in upper or "YOU MUST NEVER" in upper:
+        score += 5
+    if "MUST NEVER" in upper:
+        score += 3
+    if "MUST ALWAYS" in upper:
+        score += 2
+    if (
+        "DOCS/STATE.MD" in upper
+        or "DOCS/TODO.MD" in upper
+        or "DOCS/DECISIONS.MD" in upper
+    ):
+        score += 2
+    if "DO NOT ASK FOR PERMISSION" in upper:
+        score += 1
+    if "AUTONOMOUS" in upper:
+        score += 1
+    return score
 
 
 def _extract_hardened_mandates(agents_path):
     """Extract MUST ALWAYS / MUST NEVER mandates from AGENTS.md."""
-    mandates = []
+    scored = []
     seen = set()
     mandates_url = "AGENTS.md"
     if os.path.isfile(agents_path):
         with open(agents_path, "r", encoding="utf-8") as f:
+            index = 0
             for raw_line in f:
                 clean = raw_line.strip()
                 clean = re.sub(r"^>\s*", "", clean)
@@ -564,7 +654,14 @@ def _extract_hardened_mandates(agents_path):
                 bullet = f"- [{clean}]({mandates_url})"
                 if bullet not in seen:
                     seen.add(bullet)
-                    mandates.append(bullet)
+                    scored.append((index, _mandate_priority(clean), bullet))
+                index += 1
+
+    mandates = []
+    if scored:
+        top = sorted(scored, key=lambda item: (-item[1], item[0]))[:_LLMS_MAX_MANDATES]
+        top.sort(key=lambda item: item[0])
+        mandates = [item[2] for item in top]
 
     if not mandates:
         mandates.append("- [No explicit MUST ALWAYS/MUST NEVER mandates found](AGENTS.md)")
@@ -598,7 +695,7 @@ def _list_agents_entries(dest):
                 rel_file = os.path.relpath(os.path.join(root, filename), dest).replace(
                     os.sep, "/"
                 )
-                entries.append(f"- [{filename}]({rel_file})")
+                entries.append(f"- [{rel_file}]({rel_file})")
 
     if not entries:
         entries.append("- [No additional skills or routers configured](AGENTS.md)")
@@ -607,9 +704,9 @@ def _list_agents_entries(dest):
 
 def _render_llms_content(dest):
     """Render llms.txt from project files using the llms template."""
-    project_path = os.path.join(dest, "docs", "PROJECT.md")
+    project_path = _resolve_project_context_path(dest)
     project_name = _extract_project_name(dest, project_path)
-    summary = _extract_project_summary(project_path)
+    summary = _extract_project_summary(dest, project_path)
     key_files = _build_key_files_list(dest)
     mandates = _extract_hardened_mandates(os.path.join(dest, "AGENTS.md"))
     skills = _list_agents_entries(dest)

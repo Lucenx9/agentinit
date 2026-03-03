@@ -8,6 +8,8 @@ Scaffold **hardened, router-first** context files so your AI coding agents stop 
 
 Pure Python standard library. No runtime dependencies. Generates 2026-ready manifests for **Claude Code**, **Cursor**, **Copilot**, and **Gemini CLI**. `llms.txt` also provides discovery-friendly routing for other tools (for example, **Windsurf**).
 
+`llms.txt` now includes auto-summary and mandates.
+
 ## 🚀 Start in 60 seconds
 
 ```sh
