@@ -255,6 +255,52 @@ class TestApplyUpdates:
         assert content.count("## Safe Defaults") == 1
 
 
+class TestRefreshLlms:
+    def test_generates_enriched_llms_from_existing_files(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="AI-powered code review assistant"))
+
+        agents_path = tmp_path / "AGENTS.md"
+        agents_content = agents_path.read_text(encoding="utf-8")
+        agents_path.write_text(
+            agents_content + "\n- **YOU MUST NEVER** skip unit tests.\n",
+            encoding="utf-8",
+        )
+
+        skill_dir = tmp_path / ".agents" / "skills" / "reviewer"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Reviewer\n", encoding="utf-8")
+
+        elapsed = cli.refresh_llms_txt(str(tmp_path))
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+
+        assert elapsed < 1.0
+        lines = llms.splitlines()
+        assert lines[0].startswith("# ")
+        assert lines[1] == "> AI-powered code review assistant"
+        assert "## Key Files" in llms
+        assert "- [AGENTS.md](AGENTS.md): Instructions and Rules" in llms
+        assert "- [docs/STATE.md](docs/STATE.md): Current State & Focus" in llms
+        assert "- [docs/CONVENTIONS.md](docs/CONVENTIONS.md): Development Conventions" in llms
+        assert "- [docs/TODO.md](docs/TODO.md): Pending Tasks" in llms
+        assert "- [docs/DECISIONS.md](docs/DECISIONS.md): Architectural Log" in llms
+        assert "## Hardened Mandates" in llms
+        assert "**YOU MUST ALWAYS**" in llms
+        assert "**YOU MUST NEVER** skip unit tests." in llms
+        assert "## Skills & Routers" in llms
+        assert "(.agents/skills/reviewer/SKILL.md)" in llms
+
+    def test_marks_missing_key_files_for_minimal_profile(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+
+        assert "(missing in this profile)" in llms
+        assert "[docs/STATE.md](docs/STATE.md): Current State & Focus (missing in this profile)" in llms
+        assert "[docs/TODO.md](docs/TODO.md): Pending Tasks (missing in this profile)" in llms
+        assert "[docs/DECISIONS.md](docs/DECISIONS.md): Architectural Log (missing in this profile)" in llms
+
+
 # ---------------------------------------------------------------------------
 # cmd_new
 # ---------------------------------------------------------------------------
@@ -416,10 +462,11 @@ class TestCmdInit:
         assert "docs/TODO.md" not in agents
         assert "docs/DECISIONS.md" not in agents
         assert ".claude/rules/" not in agents
-        assert "docs/STATE.md" not in llms
-        assert "docs/TODO.md" not in llms
-        assert "docs/DECISIONS.md" not in llms
-        assert "GEMINI.md" not in llms
+        assert "## Key Files" in llms
+        assert "docs/STATE.md" in llms
+        assert "docs/TODO.md" in llms
+        assert "docs/DECISIONS.md" in llms
+        assert "(missing in this profile)" in llms
 
     def test_minimal_with_purpose(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -660,6 +707,22 @@ class TestMain:
         assert exc.value.code == 0
         out = capsys.readouterr().out.strip()
         assert re.match(r"\d+\.\d+\.\d+", out), f"expected semver, got {out!r}"
+
+    def test_refresh_llms_command(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="My project"))
+        monkeypatch.setattr(sys, "argv", ["agentinit", "refresh-llms"])
+        cli.main()
+        out = capsys.readouterr().out
+        assert "Regenerated llms.txt in " in out
+
+    def test_refresh_alias_command(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="My project"))
+        monkeypatch.setattr(sys, "argv", ["agentinit", "refresh"])
+        cli.main()
+        out = capsys.readouterr().out
+        assert "Regenerated llms.txt in " in out
 
 
 # ---------------------------------------------------------------------------

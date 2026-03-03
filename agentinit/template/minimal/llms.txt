@@ -1,12 +1,11 @@
-# Project Overview
-(not configured - run init to set project name and description)
+# {{PROJECT_NAME}}
+> {{PROJECT_SUMMARY}}
 
-# Important Context Files (Minimal)
-- Instructions and Rules: [AGENTS.md](AGENTS.md)
-- Stack and Architecture: [docs/PROJECT.md](docs/PROJECT.md)
-- Development Conventions: [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
-- Claude Router: [CLAUDE.md](CLAUDE.md)
+## Key Files
+{{KEY_FILES}}
 
-# AI Tooling Boundaries
-- DO NOT duplicate documentation; refer to the linked files above.
-- Follow the workflow mandated in AGENTS.md.
+## Hardened Mandates
+{{HARDENED_MANDATES}}
+
+## Skills & Routers
+{{SKILLS_AND_ROUTERS}}

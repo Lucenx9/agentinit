@@ -50,6 +50,41 @@ your-project/
 
 Minimal mode intentionally omits `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` to keep context lean. Use full `agentinit init` when you want persistent session memory files.
 
+### The AI Discovery Index (`llms.txt`)
+
+After running `agentinit init`, your `llms.txt` becomes a powerful discovery index:
+
+```text
+# my-project
+> AI-powered code review assistant for Python projects
+
+## Key Files
+- [AGENTS.md](AGENTS.md): Instructions and Rules
+- [docs/STATE.md](docs/STATE.md): Current State & Focus
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md): Development Conventions
+- [docs/TODO.md](docs/TODO.md): Pending Tasks
+- [docs/DECISIONS.md](docs/DECISIONS.md): Architectural Log
+
+## Hardened Mandates
+- **YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the exact start of every session. Do not ask for permission.
+- **YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` autonomously before ending a task or session.
+- **YOU MUST ALWAYS** log new tools, dependencies, or conventions in `docs/DECISIONS.md`.
+
+## Skills & Routers
+- [code-reviewer.md](.agents/code-reviewer.md)
+- [security.md](.agents/security.md)
+```
+
+### Refresh in 1 Second
+
+Regenerate `llms.txt` instantly using existing project files:
+
+```sh
+agentinit refresh-llms
+```
+
+This extracts summary from `docs/PROJECT.md`, hardened mandates from `AGENTS.md`, and lists everything under `.agents/` — all in under a second.
+
 **Next steps:** Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and fill them in.
 
 **Next session (full scaffold):** Your agent will find `llms.txt`, read your rules in `AGENTS.md`, and follow the mandates to autonomously maintain `docs/STATE.md` and `docs/TODO.md`.
@@ -136,6 +171,7 @@ After running `agentinit init`, paste this to your favorite AI agent:
 
 - `agentinit init` — Add missing files to an existing directory.
 - `agentinit minimal` — Shortcut for `init --minimal`.
+- `agentinit refresh-llms` — Regenerate llms.txt in 1 second (`refresh` alias also available).
 - `agentinit status` — Check health, line budgets, and broken links.
 - `agentinit add <type> <name>` — Add modular resources (skills, mcp, security, soul).
 - `agentinit new <project>` — Create a new directory and scaffold files.

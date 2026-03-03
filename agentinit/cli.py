@@ -452,6 +452,199 @@ def _replace_commands_section(content, new_body):
     return new_content
 
 
+_LLMS_DEFAULT_SUMMARY = "(not configured - run init to set project name and description)"
+_LLMS_KEY_FILES = [
+    ("AGENTS.md", "Instructions and Rules"),
+    ("docs/STATE.md", "Current State & Focus"),
+    ("docs/CONVENTIONS.md", "Development Conventions"),
+    ("docs/TODO.md", "Pending Tasks"),
+    ("docs/DECISIONS.md", "Architectural Log"),
+]
+
+
+def _extract_project_name(dest, project_path):
+    """Infer project name from manifests, then docs/PROJECT.md, then folder name."""
+    pyproject_path = os.path.join(dest, "pyproject.toml")
+    if os.path.isfile(pyproject_path):
+        try:
+            import tomllib
+
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+            project = data.get("project")
+            if isinstance(project, dict):
+                name = str(project.get("name") or "").strip()
+                if name:
+                    return name
+        except Exception:
+            pass
+
+    package_json_path = os.path.join(dest, "package.json")
+    if os.path.isfile(package_json_path):
+        try:
+            import json
+
+            with open(package_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            name = str(data.get("name") or "").strip()
+            if name:
+                return name
+        except Exception:
+            pass
+
+    if os.path.isfile(project_path):
+        with open(project_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+        if match:
+            title = match.group(1).strip()
+            if title and title.lower() not in {"project", "project context", "context"}:
+                return title
+
+    folder_name = os.path.basename(os.path.abspath(dest)).strip()
+    return folder_name or "Project"
+
+
+def _extract_stack_field(content, field_name):
+    """Extract a Stack field value from docs/PROJECT.md."""
+    pattern = re.compile(
+        rf"^- \*\*{re.escape(field_name)}:\*\*\s*(.+)$",
+        re.MULTILINE,
+    )
+    match = pattern.search(content)
+    if not match:
+        return ""
+    value = match.group(1).strip()
+    if not value or "(not configured)" in value:
+        return ""
+    return value
+
+
+def _extract_project_summary(project_path):
+    """Return a one-line project summary from docs/PROJECT.md."""
+    if not os.path.isfile(project_path):
+        return _LLMS_DEFAULT_SUMMARY
+
+    with open(project_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    for pattern in (r"^\*\*Purpose:\*\*\s*(.+)$", r"^Purpose:\s*(.+)$"):
+        match = re.search(pattern, content, re.MULTILINE)
+        if not match:
+            continue
+        summary = match.group(1).strip()
+        if summary and "Describe what this project is for" not in summary:
+            return summary
+
+    language = _extract_stack_field(content, "Language(s)")
+    runtime = _extract_stack_field(content, "Runtime")
+    framework = _extract_stack_field(content, "Framework(s)")
+    parts = [part for part in (language, framework, runtime) if part]
+    if parts:
+        return f"{' | '.join(parts)} project."
+
+    return _LLMS_DEFAULT_SUMMARY
+
+
+def _extract_hardened_mandates(agents_path):
+    """Extract MUST ALWAYS / MUST NEVER mandates from AGENTS.md."""
+    mandates = []
+    seen = set()
+    if os.path.isfile(agents_path):
+        with open(agents_path, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                clean = raw_line.strip()
+                clean = re.sub(r"^>\s*", "", clean)
+                clean = re.sub(r"^[-*]\s*", "", clean)
+                if not clean:
+                    continue
+                if "MUST ALWAYS" not in clean and "MUST NEVER" not in clean:
+                    continue
+                bullet = f"- {clean}"
+                if bullet not in seen:
+                    seen.add(bullet)
+                    mandates.append(bullet)
+
+    if not mandates:
+        mandates.append("- (No explicit MUST ALWAYS/MUST NEVER mandates found in AGENTS.md)")
+    return mandates
+
+
+def _build_key_files_list(dest):
+    """Build the Key Files section with availability markers."""
+    key_files = []
+    for rel_path, description in _LLMS_KEY_FILES:
+        full_path = os.path.join(dest, rel_path)
+        suffix = "" if os.path.isfile(full_path) else " (missing in this profile)"
+        key_files.append(f"- [{rel_path}]({rel_path}): {description}{suffix}")
+    return key_files
+
+
+def _list_agents_entries(dest):
+    """List all entries under .agents/ for Skills & Routers."""
+    agents_dir = os.path.join(dest, ".agents")
+    entries = []
+    if os.path.isdir(agents_dir):
+        for root, dirs, files in os.walk(agents_dir):
+            dirs.sort()
+            files.sort()
+            for dirname in dirs:
+                rel_dir = os.path.relpath(os.path.join(root, dirname), dest).replace(
+                    os.sep, "/"
+                )
+                entries.append(f"- `{rel_dir}/`")
+            for filename in files:
+                rel_file = os.path.relpath(os.path.join(root, filename), dest).replace(
+                    os.sep, "/"
+                )
+                entries.append(f"- [{filename}]({rel_file})")
+
+    if not entries:
+        entries.append("- (No additional skills or routers configured in .agents/)")
+    return entries
+
+
+def _render_llms_content(dest):
+    """Render llms.txt from project files using the llms template."""
+    project_path = os.path.join(dest, "docs", "PROJECT.md")
+    project_name = _extract_project_name(dest, project_path)
+    summary = _extract_project_summary(project_path)
+    key_files = _build_key_files_list(dest)
+    mandates = _extract_hardened_mandates(os.path.join(dest, "AGENTS.md"))
+    skills = _list_agents_entries(dest)
+
+    template_path = os.path.join(TEMPLATE_DIR, "llms.txt")
+    if os.path.isfile(template_path):
+        with open(template_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = (
+            "# {{PROJECT_NAME}}\n> {{PROJECT_SUMMARY}}\n\n"
+            "## Key Files\n{{KEY_FILES}}\n\n"
+            "## Hardened Mandates\n{{HARDENED_MANDATES}}\n\n"
+            "## Skills & Routers\n{{SKILLS_AND_ROUTERS}}\n"
+        )
+
+    replacements = {
+        "{{PROJECT_NAME}}": project_name,
+        "{{PROJECT_SUMMARY}}": summary,
+        "{{KEY_FILES}}": "\n".join(key_files),
+        "{{HARDENED_MANDATES}}": "\n".join(mandates),
+        "{{SKILLS_AND_ROUTERS}}": "\n".join(skills),
+    }
+    if all(token in content for token in replacements):
+        for token, value in replacements.items():
+            content = content.replace(token, value)
+        return content
+
+    return (
+        f"# {project_name}\n> {summary}\n\n"
+        f"## Key Files\n{replacements['{{KEY_FILES}}']}\n\n"
+        f"## Hardened Mandates\n{replacements['{{HARDENED_MANDATES}}']}\n\n"
+        f"## Skills & Routers\n{replacements['{{SKILLS_AND_ROUTERS}}']}\n"
+    )
+
+
 def apply_updates(dest, args):
     """Apply purpose and wizard data to project files."""
     wizard_run = args.prompt
@@ -555,6 +748,21 @@ def apply_updates(dest, args):
                     conv_content = safe_defaults + conv_content
                 with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(conv_content)
+
+    refresh_llms_txt(dest)
+
+
+def refresh_llms_txt(dest):
+    """Regenerate llms.txt using project files."""
+    import time
+
+    start_time = time.perf_counter()
+    dest = os.path.abspath(dest)
+    llms_path = os.path.join(dest, "llms.txt")
+    content = _render_llms_content(dest)
+    with open(llms_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+    return time.perf_counter() - start_time
 
 
 def write_todo(dest, force=False):
@@ -1568,6 +1776,18 @@ def build_parser():
         help="Repository root to lint (default: current directory).",
     )
 
+    # agentinit refresh-llms
+    p_refresh = sub.add_parser(
+        "refresh-llms",
+        aliases=["refresh"],
+        help="Regenerate llms.txt from project files (fast, existing files only).",
+    )
+    p_refresh.add_argument(
+        "--root",
+        default=None,
+        help="Project root (default: current directory).",
+    )
+
     return parser
 
 
@@ -1602,6 +1822,10 @@ def main():
         cmd_add(args)
     elif args.command == "lint":
         cmd_lint(args)
+    elif args.command in ("refresh-llms", "refresh"):
+        dest = args.root or os.getcwd()
+        elapsed = refresh_llms_txt(dest)
+        print(f"Regenerated llms.txt in {elapsed:.3f}s")
     else:
         parser.print_help()
         sys.exit(1)
