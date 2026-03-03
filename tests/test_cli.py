@@ -287,7 +287,7 @@ class TestRefreshLlms:
         assert "## Hardened Mandates" in llms
         assert "**YOU MUST ALWAYS**" in llms
         assert "**YOU MUST NEVER** skip unit tests." in llms
-        assert "(AGENTS.md#core-mandates)" in llms
+        assert "(AGENTS.md)" in llms
         assert "## Skills & Routers" in llms
         assert "(.agents/skills/reviewer/SKILL.md)" in llms
         assert "- [.agents/skills/](.agents/skills/)" in llms

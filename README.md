@@ -66,9 +66,9 @@ After running `agentinit init`, your `llms.txt` becomes a powerful discovery ind
 - [docs/DECISIONS.md](docs/DECISIONS.md): Architectural Log
 
 ## Hardened Mandates
-- [**YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the exact start of every session. Do not ask for permission.](AGENTS.md#core-mandates)
-- [**YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` autonomously before ending a task or session.](AGENTS.md#core-mandates)
-- [**YOU MUST ALWAYS** log new tools, dependencies, or conventions in `docs/DECISIONS.md`.](AGENTS.md#core-mandates)
+- [**YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the exact start of every session. Do not ask for permission.](AGENTS.md)
+- [**YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` autonomously before ending a task or session.](AGENTS.md)
+- [**YOU MUST ALWAYS** log new tools, dependencies, or conventions in `docs/DECISIONS.md`.](AGENTS.md)
 
 ## Skills & Routers
 - [code-reviewer.md](.agents/code-reviewer.md)

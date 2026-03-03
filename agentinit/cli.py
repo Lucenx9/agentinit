@@ -550,7 +550,7 @@ def _extract_hardened_mandates(agents_path):
     """Extract MUST ALWAYS / MUST NEVER mandates from AGENTS.md."""
     mandates = []
     seen = set()
-    mandates_url = "AGENTS.md#core-mandates"
+    mandates_url = "AGENTS.md"
     if os.path.isfile(agents_path):
         with open(agents_path, "r", encoding="utf-8") as f:
             for raw_line in f:
