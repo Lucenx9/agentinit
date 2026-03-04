@@ -24,7 +24,7 @@ jobs:
             --no-progress
             "**/*.md"
           fail: true
-          lycheeVersion: "0.15.1"
+          lycheeVersion: "v0.23.0"
 
       - name: Upload report
         if: failure()
