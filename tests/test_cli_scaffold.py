@@ -55,6 +55,33 @@ class TestCopyTemplate:
         assert copied == []
         assert skipped == []
 
+    def test_copy_skeleton_skips_transient_cache_and_build_artifacts(
+        self, tmp_path, monkeypatch
+    ):
+        skeleton_root = tmp_path / "skeletons" / "demo"
+        (skeleton_root / "pkg").mkdir(parents=True)
+        (skeleton_root / "pkg" / "main.py").write_text("print('ok')\n")
+        (skeleton_root / ".ruff_cache").mkdir()
+        (skeleton_root / ".ruff_cache" / "CACHEDIR.TAG").write_text("tag\n")
+        (skeleton_root / "__pycache__").mkdir()
+        (skeleton_root / "__pycache__" / "main.cpython-313.pyc").write_bytes(b"x")
+        (skeleton_root / "dist").mkdir()
+        (skeleton_root / "dist" / "demo-0.0.0.tar.gz").write_text("artifact\n")
+        (skeleton_root / "demo.egg-info").mkdir()
+        (skeleton_root / "demo.egg-info" / "PKG-INFO").write_text("metadata\n")
+
+        monkeypatch.setattr(cli, "SKELETONS_DIR", str(tmp_path / "skeletons"))
+
+        copied, skipped = cli.copy_skeleton(str(tmp_path / "dest"), "demo")
+
+        assert copied == ["pkg/main.py"]
+        assert skipped == []
+        assert (tmp_path / "dest" / "pkg" / "main.py").exists()
+        assert not (tmp_path / "dest" / ".ruff_cache").exists()
+        assert not (tmp_path / "dest" / "__pycache__").exists()
+        assert not (tmp_path / "dest" / "dist").exists()
+        assert not (tmp_path / "dest" / "demo.egg-info").exists()
+
     @pytest.mark.parametrize("minimal", [False, True])
     def test_fresh_scaffold_has_no_duplicate_context_blocks(
         self, tmp_path, monkeypatch, minimal

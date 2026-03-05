@@ -126,6 +126,29 @@ class TestCmdNew:
         assert (proj / "tests" / "conftest.py").exists()
         assert (proj / "tests" / "test_todos.py").exists()
 
+    def test_new_with_fastapi_skeleton_bootstraps_todo_and_decisions_without_warnings(
+        self, tmp_path, capsys
+    ):
+        args = make_args(
+            name="api-proj",
+            dir=str(tmp_path),
+            skeleton="fastapi",
+            yes=True,
+        )
+
+        cli.cmd_new(args)
+
+        proj = tmp_path / "api-proj"
+        todo = (proj / "docs" / "TODO.md").read_text(encoding="utf-8")
+        decisions = (proj / "docs" / "DECISIONS.md").read_text(encoding="utf-8")
+        err = capsys.readouterr().err
+
+        assert "# TODO" in todo
+        assert "# TODO Template" not in todo
+        assert "# Decisions" in decisions
+        assert "# Decisions Template" not in decisions
+        assert "already exists, skipping" not in err
+
     def test_yes_overrides_prompt(self, tmp_path, monkeypatch):
         """--yes disables --prompt so no interactive wizard runs."""
         monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
