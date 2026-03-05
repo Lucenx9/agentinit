@@ -1,4 +1,5 @@
 # Agent Instructions (AGENTS.md)
+<!-- agentinit:profile=minimal -->
 
 **Purpose:** Primary entry point for coding agents in minimal mode.
 

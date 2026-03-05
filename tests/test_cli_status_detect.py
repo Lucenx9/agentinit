@@ -136,11 +136,21 @@ class TestCmdStatus:
         agents = tmp_path / "AGENTS.md"
         llms = tmp_path / "llms.txt"
         agents.write_text(
-            agents.read_text(encoding="utf-8").replace("(minimal profile)", "profile"),
+            agents.read_text(encoding="utf-8")
+            .replace("<!-- agentinit:profile=minimal -->\n", "")
+            .replace(
+                "Primary entry point for coding agents in minimal mode.",
+                "Primary entry point.",
+            ),
             encoding="utf-8",
         )
         llms.write_text(
-            llms.read_text(encoding="utf-8").replace(" (missing in this profile)", ""),
+            llms.read_text(encoding="utf-8")
+            .replace(" (missing in this profile)", "")
+            .replace(
+                "[docs/STATE.md](docs/STATE.md): Current State & Focus",
+                "[docs/STATE.md](docs/STATE.md): State",
+            ),
             encoding="utf-8",
         )
 
@@ -150,6 +160,27 @@ class TestCmdStatus:
         out = capsys.readouterr().out
         assert "Profile: minimal" not in out
         assert "Action required" in out
+
+    def test_full_project_note_with_minimal_phrase_does_not_trigger_auto_detect(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text(
+            agents.read_text(encoding="utf-8")
+            + "\nNote: string (minimal profile) for docs example.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "GEMINI.md").unlink()
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "Profile: minimal" not in out
+        assert "GEMINI.md (missing)" in out
 
     def test_unreadable_file(self, tmp_path, monkeypatch, capsys):
         """Files that can't be read are reported as unreadable."""
