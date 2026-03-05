@@ -2,23 +2,16 @@
 
 ## Setup
 
-Add GitHub's official MCP server to Claude Code:
+GitHub maintains an official MCP server in `github/github-mcp-server`.
+For Claude Code, this template uses PAT-based setup because GitHub documents it as the portable path across MCP hosts when OAuth support varies by host.
 
-**Option A — Remote HTTP server (recommended, Claude Code 2.1.1+):**
-
-```bash
-claude mcp add --transport http github https://api.githubcopilot.com/mcp/
-```
-
-Then authenticate via `/mcp` inside Claude Code (OAuth flow in browser).
-
-**Option B — Remote with Personal Access Token:**
+**Option A — Remote HTTP server:**
 
 ```bash
-claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer YOUR_GITHUB_PAT"}}'
+claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp/","headers":{"Authorization":"Bearer YOUR_GITHUB_PAT"}}'
 ```
 
-**Option C — Local Docker server:**
+**Option B — Local Docker server:**
 
 ```bash
 claude mcp add github \
@@ -48,5 +41,5 @@ Once connected, you can:
 
 - Use a fine-grained personal access token with minimum required permissions
 - Never commit the token — use environment variables or a secrets manager
-- Recommended scopes: `repo`, `read:org` (add write scopes only if needed)
-- For GitHub Enterprise: set `GITHUB_HOST=https://your-domain.com`
+- GitHub token permissions should match the operations you actually need (read-only unless writes are required)
+- If you target GitHub Enterprise Server, verify the supported host and auth settings in the server docs before rollout

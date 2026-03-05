@@ -4,23 +4,29 @@
 
 Add a PostgreSQL MCP server to Claude Code:
 
-**Option A — Using dbhub (recommended):**
+Store the DSN in an environment variable instead of embedding credentials in shell history:
+
+```bash
+export DATABASE_URL="postgresql://readonly:pass@localhost:5432/mydb"
+```
+
+**Option A — Third-party server example (Bytebase DBHub):**
 
 ```bash
 claude mcp add --transport stdio postgres \
   -- npx -y @bytebase/dbhub \
-  --dsn "postgresql://user:password@localhost:5432/dbname"
+  --dsn "$DATABASE_URL"
 ```
 
-**Option B — Using the MCP reference server:**
+**Option B — Archived MCP reference server (compatibility only):**
 
 ```bash
 claude mcp add --transport stdio postgres \
   -- npx -y @modelcontextprotocol/server-postgres \
-  "postgresql://user:password@localhost:5432/dbname"
+  "$DATABASE_URL"
 ```
 
-Replace the connection string with your actual database credentials.
+The official MCP reference servers repository is archived, so treat `@modelcontextprotocol/server-postgres` as a legacy example rather than the default choice.
 
 ## Available Operations
 
@@ -41,10 +47,6 @@ Once connected, you can:
 
 - **Use a read-only database user** — create a dedicated role with SELECT-only permissions
 - Never use production credentials in development
-- Store connection strings in environment variables, not in code:
-
-  ```bash
-  export DATABASE_URL="postgresql://readonly:pass@localhost:5432/mydb"
-  ```
-
+- Prefer environment variables or a secret manager over inline credentials
+- Evaluate maintenance posture before adopting third-party MCP servers in production
 - Consider using connection pooling (PgBouncer) for shared environments
