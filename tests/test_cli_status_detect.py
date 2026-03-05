@@ -110,6 +110,47 @@ class TestCmdStatus:
         assert "Ready" in out
         assert "Broken reference" not in out
 
+    def test_minimal_profile_auto_detected_without_flag(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """A scaffolded minimal project should not require repeating --minimal."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "Profile: minimal (auto-detected)" in out
+        assert "Ready" in out
+
+    def test_core_only_files_without_minimal_markers_still_fail_full_check(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Auto-detection should rely on scaffold markers, not just missing files."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+
+        agents = tmp_path / "AGENTS.md"
+        llms = tmp_path / "llms.txt"
+        agents.write_text(
+            agents.read_text(encoding="utf-8").replace("(minimal profile)", "profile"),
+            encoding="utf-8",
+        )
+        llms.write_text(
+            llms.read_text(encoding="utf-8").replace(" (missing in this profile)", ""),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "Profile: minimal" not in out
+        assert "Action required" in out
+
     def test_unreadable_file(self, tmp_path, monkeypatch, capsys):
         """Files that can't be read are reported as unreadable."""
         monkeypatch.chdir(tmp_path)

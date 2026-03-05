@@ -453,6 +453,33 @@ class TestCmdRemove:
 
 
 class TestCmdSync:
+    def test_sync_minimal_restores_minimal_claude_router(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+
+        (tmp_path / "CLAUDE.md").write_text("custom", encoding="utf-8")
+
+        cli.cmd_sync(make_sync_args())
+
+        template_claude = (Path(cli.TEMPLATE_DIR) / "minimal" / "CLAUDE.md").read_text(
+            encoding="utf-8"
+        )
+        assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == template_claude
+        assert not (tmp_path / "GEMINI.md").exists()
+
+    def test_sync_minimal_check_auto_detects_profile(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_sync(make_sync_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "Profile: minimal (auto-detected)" in out
+        assert "GEMINI.md" not in out
+
     def test_sync_updates_drifted_router_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())

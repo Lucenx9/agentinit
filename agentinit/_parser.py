@@ -227,6 +227,11 @@ def build_parser(skeleton_choices, add_resource_types):
         help="Exit with code 1 if router files are out of sync (CI mode).",
     )
     p_sync.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Sync only the minimal router set (or force minimal mode).",
+    )
+    p_sync.add_argument(
         "--root",
         default=None,
         help="Project root (default: current directory).",

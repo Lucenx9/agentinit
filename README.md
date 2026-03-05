@@ -62,6 +62,8 @@ agentinit sync --check
 agentinit lint
 ```
 
+For minimal projects, both `status --check` and `sync --check` auto-detect the generated minimal profile. `status --minimal --check` and `sync --minimal --check` remain available if you want to force that mode explicitly.
+
 ### Command Reference
 
 - `agentinit init` add missing context files in current directory
