@@ -192,6 +192,16 @@ class TestCmdInit:
         assert "Init Purpose" in content
         assert "Describe what this project is for" not in content
 
+    def test_minimal_claude_router_uses_direct_imports(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+
+        claude = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+
+        assert "@AGENTS.md" in claude
+        assert "@docs/PROJECT.md" in claude
+        assert "@docs/CONVENTIONS.md" in claude
+
     def test_minimal_does_not_overwrite_project_or_conventions_without_force(
         self, tmp_path, monkeypatch
     ):
@@ -232,6 +242,21 @@ class TestCmdInit:
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "My cool project" in content
         assert "Describe what this project is for" not in content
+
+    def test_full_routers_use_direct_imports(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        claude = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+        gemini = (tmp_path / "GEMINI.md").read_text(encoding="utf-8")
+
+        for text in (claude, gemini):
+            assert "@AGENTS.md" in text
+            assert "@docs/PROJECT.md" in text
+            assert "@docs/CONVENTIONS.md" in text
+            assert "@docs/TODO.md" in text
+            assert "@docs/DECISIONS.md" in text
+            assert "@docs/STATE.md" in text
 
     def test_prompt_fails_without_tty(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
