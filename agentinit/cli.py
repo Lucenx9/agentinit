@@ -31,6 +31,29 @@ from agentinit._sync import cmd_sync as _cmd_sync_impl
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template")
 SKELETONS_DIR = os.path.join(TEMPLATE_DIR, "skeletons")
 SKELETON_CHOICES = ("fastapi",)
+SKELETON_IGNORED_DIR_NAMES = {
+    "__pycache__",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    "build",
+    "dist",
+}
+SKELETON_IGNORED_FILE_NAMES = {
+    ".DS_Store",
+    "CACHEDIR.TAG",
+}
+SKELETON_IGNORED_FILE_SUFFIXES = (
+    ".egg-info",
+    ".pyc",
+    ".pyd",
+    ".pyo",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +199,18 @@ def _template_source_for(rel, minimal):
     return os.path.join(TEMPLATE_DIR, rel)
 
 
+def _should_skip_skeleton_dir(dirname):
+    """Return True when a skeleton subdirectory is a transient cache/build dir."""
+    return dirname in SKELETON_IGNORED_DIR_NAMES or dirname.endswith(".egg-info")
+
+
+def _should_skip_skeleton_file(filename):
+    """Return True when a skeleton file is a transient cache/build artifact."""
+    if filename in SKELETON_IGNORED_FILE_NAMES:
+        return True
+    return filename.endswith(SKELETON_IGNORED_FILE_SUFFIXES)
+
+
 def _warn_skip(rel, message):
     """Print a standardized skip warning."""
     print(_c(message.format(rel=rel), _YELLOW, sys.stderr), file=sys.stderr)
@@ -307,10 +342,15 @@ def copy_skeleton(dest, skeleton, force=False):
         sys.exit(1)
 
     dest_real = os.path.realpath(dest)
-    for root, _, files in os.walk(skeleton_root):
+    for root, dirnames, files in os.walk(skeleton_root):
+        dirnames[:] = sorted(
+            name for name in dirnames if not _should_skip_skeleton_dir(name)
+        )
         files.sort()
         rel_root = os.path.relpath(root, skeleton_root)
         for filename in files:
+            if _should_skip_skeleton_file(filename):
+                continue
             rel = os.path.normpath(os.path.join(rel_root, filename)).replace("\\", "/")
             if rel == ".":
                 rel = filename
@@ -681,8 +721,8 @@ def cmd_new(args):
             dest, args.skeleton, force=args.force
         )
     if not args.minimal:
-        write_todo(dest, force=args.force)
-        write_decisions(dest, force=args.force)
+        write_todo(dest, force=args.force or "docs/TODO.md" in copied)
+        write_decisions(dest, force=args.force or "docs/DECISIONS.md" in copied)
 
     print(_c("Created project", _GREEN + _BOLD) + f" at {dest}")
     if copied:
