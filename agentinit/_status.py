@@ -8,6 +8,8 @@ import sys
 from dataclasses import dataclass, field
 from typing import Callable
 
+from agentinit._profiles import looks_like_minimal_profile
+
 
 @dataclass
 class StatusState:
@@ -287,7 +289,12 @@ def cmd_status(
 ) -> None:
     """Show the status of agentinit context files in the current directory."""
     dest = os.path.abspath(".")
-    minimal_mode = bool(getattr(args, "minimal", False))
+    explicit_minimal = bool(getattr(args, "minimal", False))
+    detected_minimal = False
+    if not explicit_minimal:
+        detected_minimal = looks_like_minimal_profile(dest)
+
+    minimal_mode = explicit_minimal or detected_minimal
     files_to_check = minimal_managed_files if minimal_mode else managed_files
     minimal_ref_paths = {
         os.path.normpath(p).replace("\\", "/") for p in minimal_managed_files
@@ -295,6 +302,10 @@ def cmd_status(
 
     state = StatusState()
     _print_status_header(dest)
+    if explicit_minimal:
+        print("Profile: minimal\n")
+    elif detected_minimal:
+        print("Profile: minimal (auto-detected)\n")
 
     for rel in files_to_check:
         _check_single_file(

@@ -6,12 +6,18 @@ import os
 import sys
 from typing import Callable
 
-SYNC_ROUTER_FILES = (
+from agentinit._profiles import looks_like_minimal_profile
+
+FULL_SYNC_ROUTER_FILES = (
     "CLAUDE.md",
     "GEMINI.md",
     os.path.join(".cursor", "rules", "project.mdc"),
     os.path.join(".github", "copilot-instructions.md"),
 )
+MINIMAL_SYNC_ROUTER_FILES = ("CLAUDE.md",)
+MINIMAL_TEMPLATE_OVERRIDES = {
+    "CLAUDE.md": os.path.join("minimal", "CLAUDE.md"),
+}
 
 
 def _fail(message: str) -> None:
@@ -23,6 +29,15 @@ def _validate_sync_root(dest: str) -> None:
     """Ensure destination project has AGENTS.md."""
     if not os.path.isfile(os.path.join(dest, "AGENTS.md")):
         _fail("AGENTS.md not found. Run 'agentinit init' first.")
+
+
+def _template_path_for(rel: str, template_dir: str, minimal_mode: bool) -> str:
+    """Resolve the expected template path for a router file."""
+    if minimal_mode and rel in MINIMAL_TEMPLATE_OVERRIDES:
+        candidate = os.path.join(template_dir, MINIMAL_TEMPLATE_OVERRIDES[rel])
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(template_dir, rel)
 
 
 def _read_text(path: str, label: str) -> tuple[str | None, str | None]:
@@ -66,11 +81,12 @@ def _sync_single_router(
     dest: str,
     dest_real: str,
     template_dir: str,
+    minimal_mode: bool,
     check_mode: bool,
     resolves_within: Callable[[str, str], bool],
 ) -> tuple[str, str]:
     """Sync one router file and return (status, detail)."""
-    template_path = os.path.join(template_dir, rel)
+    template_path = _template_path_for(rel, template_dir, minimal_mode)
     if not os.path.isfile(template_path):
         return "error", "missing template in installation"
 
@@ -107,12 +123,15 @@ def _sync_single_router(
 
 def _print_check_result(
     dest: str,
+    profile_label: str | None,
     drift: list[tuple[str, str]],
     unchanged: list[str],
     errors: list[tuple[str, str]],
 ) -> None:
     print("Sync check")
     print(f"Directory: {dest}\n")
+    if profile_label:
+        print(f"Profile: {profile_label}\n")
     for rel, reason in drift:
         print(f"  x {rel} ({reason})")
     for rel in unchanged:
@@ -141,6 +160,18 @@ def cmd_sync(
     dest = os.path.abspath(args.root or os.getcwd())
     dest_real = os.path.realpath(dest)
     check_mode = bool(getattr(args, "check", False))
+    explicit_minimal = bool(getattr(args, "minimal", False))
+    detected_minimal = False
+    if not explicit_minimal:
+        detected_minimal = looks_like_minimal_profile(dest)
+    minimal_mode = explicit_minimal or detected_minimal
+    router_files = MINIMAL_SYNC_ROUTER_FILES if minimal_mode else FULL_SYNC_ROUTER_FILES
+    profile_label = None
+    if explicit_minimal:
+        profile_label = "minimal"
+    elif detected_minimal:
+        profile_label = "minimal (auto-detected)"
+
     _validate_sync_root(dest)
 
     drift: list[tuple[str, str]] = []
@@ -148,12 +179,13 @@ def cmd_sync(
     unchanged: list[str] = []
     errors: list[tuple[str, str]] = []
 
-    for rel in SYNC_ROUTER_FILES:
+    for rel in router_files:
         status, detail = _sync_single_router(
             rel,
             dest=dest,
             dest_real=dest_real,
             template_dir=template_dir,
+            minimal_mode=minimal_mode,
             check_mode=check_mode,
             resolves_within=resolves_within,
         )
@@ -167,7 +199,7 @@ def cmd_sync(
             errors.append((rel, detail))
 
     if check_mode:
-        _print_check_result(dest, drift, unchanged, errors)
+        _print_check_result(dest, profile_label, drift, unchanged, errors)
         if drift or errors:
             print("\nResult: Out of sync")
             sys.exit(1)

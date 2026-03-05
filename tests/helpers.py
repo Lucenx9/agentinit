@@ -58,6 +58,6 @@ def make_add_args(**kwargs):
 
 
 def make_sync_args(**kwargs):
-    defaults = {"check": False, "root": None}
+    defaults = {"check": False, "root": None, "minimal": False}
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
