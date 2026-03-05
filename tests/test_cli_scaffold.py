@@ -1,10 +1,12 @@
 """Tests for agentinit.cli."""
 
 import sys
+from pathlib import Path
 
 import pytest
 
 import agentinit.cli as cli
+from agentinit.contextlint_adapter import get_checks_module
 from tests.helpers import (
     make_args,
     make_init_args,
@@ -52,6 +54,23 @@ class TestCopyTemplate:
         copied, skipped = cli.copy_template(str(tmp_path / "dest"))
         assert copied == []
         assert skipped == []
+
+    @pytest.mark.parametrize("minimal", [False, True])
+    def test_fresh_scaffold_has_no_duplicate_context_blocks(
+        self, tmp_path, monkeypatch, minimal
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=minimal))
+
+        checks_mod = get_checks_module()
+        lint_result = checks_mod.run_checks(root=Path(tmp_path))
+        duplicate_messages = [
+            diag.message
+            for diag in lint_result.diagnostics
+            if "duplicate block found" in diag.message
+        ]
+
+        assert duplicate_messages == []
 
 
 class TestWriteTodo:

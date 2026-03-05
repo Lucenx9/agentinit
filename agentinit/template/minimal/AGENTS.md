@@ -10,11 +10,8 @@
 
 **Commands:**
 
-- Setup: (not configured)
-- Build: (not configured)
-- Test: (not configured)
-- Lint/Format: (not configured)
-- Run: (not configured)
+- Canonical runnable commands live in `docs/PROJECT.md`.
+- Keep Setup / Build / Test / Lint/Format / Run current there.
 
 **When unsure:**
 

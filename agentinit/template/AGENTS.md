@@ -15,11 +15,8 @@
 
 **Commands:**
 
-- Setup: (not configured)
-- Build: (not configured)
-- Test: (not configured)
-- Lint/Format: (not configured)
-- Run: (not configured)
+- Canonical runnable commands live in `docs/PROJECT.md`.
+- Keep Setup / Build / Test / Lint/Format / Run current there.
 
 > If you introduce a tool or dependency (pytest, ruff, etc.), record it in `docs/DECISIONS.md` and update `docs/PROJECT.md` commands in the same PR.
 
