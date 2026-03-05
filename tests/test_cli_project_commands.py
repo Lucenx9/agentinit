@@ -208,6 +208,29 @@ class TestCmdInit:
         assert project.read_text() == "custom project"
         assert conventions.read_text() == "custom conventions"
 
+    def test_minimal_does_not_overwrite_project_or_llms_without_force(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True, purpose="First purpose"))
+
+        project = tmp_path / "docs" / "PROJECT.md"
+        llms = tmp_path / "llms.txt"
+        project.write_text(
+            project.read_text(encoding="utf-8").replace(
+                "First purpose", "User customized purpose"
+            ),
+            encoding="utf-8",
+        )
+        llms.write_text("custom llms\n", encoding="utf-8")
+
+        cli.cmd_init(make_init_args(minimal=True, purpose="Second purpose"))
+
+        assert "**Purpose:** User customized purpose" in project.read_text(
+            encoding="utf-8"
+        )
+        assert llms.read_text(encoding="utf-8") == "custom llms\n"
+
     def test_missing_template_dir_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))
@@ -377,6 +400,22 @@ class TestCmdRemove:
         cli.cmd_init(make_init_args())
         cli.cmd_remove(make_remove_args())
         assert not (tmp_path / "docs").exists()
+
+    def test_skips_symlinked_managed_paths(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        outside = tmp_path.parent / f"{tmp_path.name}-external"
+        outside.mkdir()
+        (outside / "PROJECT.md").write_text("external project\n", encoding="utf-8")
+        (tmp_path / "docs").symlink_to(outside, target_is_directory=True)
+
+        cli.cmd_remove(make_remove_args())
+
+        assert (outside / "PROJECT.md").read_text(encoding="utf-8") == (
+            "external project\n"
+        )
+        assert (tmp_path / "docs").is_symlink()
+        err = capsys.readouterr().err
+        assert "managed path parent resolves outside project" in err
 
     def test_confirm_fails_on_non_tty(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)

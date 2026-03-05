@@ -181,6 +181,38 @@ def _warn_skip(rel, message):
     print(_c(message.format(rel=rel), _YELLOW, sys.stderr), file=sys.stderr)
 
 
+def _relpath_from(dest, path):
+    """Return a relative path label for logging."""
+    try:
+        return os.path.relpath(path, dest)
+    except ValueError:
+        return path
+
+
+def _validate_managed_path(dest, path):
+    """Return True when a managed path stays within the project root and is not a symlink."""
+    dest_real = os.path.realpath(dest)
+    rel = _relpath_from(dest, path)
+    parent = os.path.dirname(path) or dest
+
+    if not _resolves_within(dest_real, parent):
+        _warn_skip(
+            rel,
+            "Warning: managed path parent resolves outside project, skipping: {rel}",
+        )
+        return False
+    if os.path.lexists(path) and os.path.islink(path):
+        _warn_skip(rel, "Warning: managed path is a symlink, skipping: {rel}")
+        return False
+    if not _resolves_within(dest_real, path):
+        _warn_skip(
+            rel,
+            "Warning: managed path resolves outside project, skipping: {rel}",
+        )
+        return False
+    return True
+
+
 def _skip_existing_destination(rel, dst, force, skipped):
     """Handle destination existence policy. Return True when caller should skip."""
     if not os.path.lexists(dst):
@@ -305,8 +337,18 @@ def _render_llms_content(dest):
     return _render_llms_content_impl(dest, TEMPLATE_DIR)
 
 
-def apply_updates(dest, args):
+def apply_updates(dest, args, *, writable_files=None):
     """Apply purpose and wizard data to project files."""
+    writable = (
+        {os.path.normpath(rel).replace("\\", "/") for rel in writable_files}
+        if writable_files is not None
+        else None
+    )
+
+    def _can_write(rel):
+        norm_rel = os.path.normpath(rel).replace("\\", "/")
+        return writable is None or norm_rel in writable
+
     wizard_run = args.prompt
     if wizard_run:
         if not sys.stdin.isatty():
@@ -343,7 +385,11 @@ def apply_updates(dest, args):
 
     project_content = ""
     project_path = os.path.join(dest, "docs", "PROJECT.md")
-    if not os.path.isfile(project_path):
+    project_rel = os.path.join("docs", "PROJECT.md")
+    project_safe = _validate_managed_path(dest, project_path)
+    if not project_safe:
+        pass
+    elif not os.path.isfile(project_path):
         print(
             _c("Warning:", _YELLOW, sys.stderr)
             + " docs/PROJECT.md is not a regular file; skipping purpose update.",
@@ -353,67 +399,73 @@ def apply_updates(dest, args):
         with open(project_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        if purpose:
-            content = content.replace(_PURPOSE_PLACEHOLDER, purpose)
-            content = _replace_purpose_text(content, purpose)
-            if _detect_purpose_language(purpose) == "en":
-                content = _clear_purpose_original_marker(content)
+        if _can_write(project_rel):
+            if purpose:
+                content = content.replace(_PURPOSE_PLACEHOLDER, purpose)
+                content = _replace_purpose_text(content, purpose)
+                if _detect_purpose_language(purpose) == "en":
+                    content = _clear_purpose_original_marker(content)
 
-        if wizard_run:
-            if env:
-                content = content.replace(
-                    "## Stack",
-                    f"## Environment\n\n- OS/device: {env}\n\n## Stack",
-                    1,
-                )
-            if commands:
-                cmds_list = "\n".join(
-                    f"- {c.strip()}" for c in commands.split(",") if c.strip()
-                )
-                content = _replace_commands_section(content, cmds_list)
-            if constraints:
-                old_constraints = (
-                    "- **Security:** (document security constraints)\n"
-                    "- **Performance:** (document performance constraints)\n"
-                    "- **Deadlines/Limits:** (document deadline constraints)"
-                )
-                content = content.replace(old_constraints, f"- {constraints}")
+            if wizard_run:
+                if env:
+                    content = content.replace(
+                        "## Stack",
+                        f"## Environment\n\n- OS/device: {env}\n\n## Stack",
+                        1,
+                    )
+                if commands:
+                    cmds_list = "\n".join(
+                        f"- {c.strip()}" for c in commands.split(",") if c.strip()
+                    )
+                    content = _replace_commands_section(content, cmds_list)
+                if constraints:
+                    old_constraints = (
+                        "- **Security:** (document security constraints)\n"
+                        "- **Performance:** (document performance constraints)\n"
+                        "- **Deadlines/Limits:** (document deadline constraints)"
+                    )
+                    content = content.replace(old_constraints, f"- {constraints}")
 
-        current_purpose = _extract_purpose_text(content)
-        current_lang = _detect_purpose_language(current_purpose)
-        should_translate = bool(
-            current_purpose
-            and current_purpose != _PURPOSE_PLACEHOLDER
-            and current_lang in {"it", "es", "fr"}
-            and (translate_requested or getattr(args, "detect", False))
-        )
-        if should_translate:
-            translated = _translate_text_to_english(current_purpose)
-            if translated and translated != current_purpose:
-                content = _replace_purpose_text(content, translated)
-                content = _set_purpose_original_marker(content, current_purpose)
-                translated_for_docs = True
-                print("Purpose translated to English for docs/*")
-        elif purpose and _purpose_seems_non_english(purpose):
-            print(
-                _c("Warning:", _YELLOW, sys.stderr)
-                + " --purpose appears non-English; keep docs/* in English when possible.",
-                file=sys.stderr,
+            current_purpose = _extract_purpose_text(content)
+            current_lang = _detect_purpose_language(current_purpose)
+            should_translate = bool(
+                current_purpose
+                and current_purpose != _PURPOSE_PLACEHOLDER
+                and current_lang in {"it", "es", "fr"}
+                and (translate_requested or getattr(args, "detect", False))
             )
+            if should_translate:
+                translated = _translate_text_to_english(current_purpose)
+                if translated and translated != current_purpose:
+                    content = _replace_purpose_text(content, translated)
+                    content = _set_purpose_original_marker(content, current_purpose)
+                    translated_for_docs = True
+                    print("Purpose translated to English for docs/*")
+            elif purpose and _purpose_seems_non_english(purpose):
+                print(
+                    _c("Warning:", _YELLOW, sys.stderr)
+                    + " --purpose appears non-English; keep docs/* in English when possible.",
+                    file=sys.stderr,
+                )
 
-        if getattr(args, "detect", False):
-            content = _run_detect(dest, project_path, content)
+            if getattr(args, "detect", False):
+                content = _run_detect(dest, project_path, content)
 
-        with open(project_path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(content)
+            with open(project_path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(content)
         project_content = content
 
-        if not wizard_run and "(not configured)" in content:
+        if _can_write(project_rel) and not wizard_run and "(not configured)" in content:
             print("Run with --prompt to fill interactively.")
 
     if wizard_run:
         conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
-        if os.path.isfile(conv_path):
+        conv_rel = os.path.join("docs", "CONVENTIONS.md")
+        if (
+            _can_write(conv_rel)
+            and _validate_managed_path(dest, conv_path)
+            and os.path.isfile(conv_path)
+        ):
             safe_defaults = (
                 "## Safe Defaults\n\n"
                 "- Prefer small, reversible changes\n"
@@ -437,7 +489,13 @@ def apply_updates(dest, args):
 
     if getattr(args, "detect", False):
         conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
-        if os.path.isfile(conv_path) and project_content:
+        conv_rel = os.path.join("docs", "CONVENTIONS.md")
+        if (
+            _can_write(conv_rel)
+            and _validate_managed_path(dest, conv_path)
+            and os.path.isfile(conv_path)
+            and project_content
+        ):
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
             conv_updated = _run_detect_conventions(project_content, conv_content)
@@ -448,7 +506,12 @@ def apply_updates(dest, args):
                     f.write(conv_updated)
     elif translated_for_docs:
         conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
-        if os.path.isfile(conv_path):
+        conv_rel = os.path.join("docs", "CONVENTIONS.md")
+        if (
+            _can_write(conv_rel)
+            and _validate_managed_path(dest, conv_path)
+            and os.path.isfile(conv_path)
+        ):
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
             conv_updated = _translate_text_to_english(conv_content)
@@ -456,7 +519,8 @@ def apply_updates(dest, args):
                 with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(conv_updated)
 
-    refresh_llms_txt(dest)
+    if _can_write("llms.txt"):
+        refresh_llms_txt(dest)
 
 
 def refresh_llms_txt(dest):
@@ -466,6 +530,8 @@ def refresh_llms_txt(dest):
     start_time = time.perf_counter()
     dest = os.path.abspath(dest)
     llms_path = os.path.join(dest, "llms.txt")
+    if not _validate_managed_path(dest, llms_path):
+        return None
     content = _render_llms_content(dest)
     with open(llms_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
@@ -478,6 +544,8 @@ def write_todo(dest, force=False):
     Skips if the file already exists unless force is True.
     """
     path = os.path.join(dest, "docs", "TODO.md")
+    if not _validate_managed_path(dest, path):
+        return
     if os.path.exists(path) and not force:
         print(
             _c("Warning:", _YELLOW, sys.stderr)
@@ -512,6 +580,8 @@ def write_decisions(dest, force=False):
     Skips if the file already exists unless force is True.
     """
     path = os.path.join(dest, "docs", "DECISIONS.md")
+    if not _validate_managed_path(dest, path):
+        return
     if os.path.exists(path) and not force:
         print(
             _c("Warning:", _YELLOW, sys.stderr)
@@ -603,7 +673,7 @@ def cmd_new(args):
         sys.exit(1)
 
     # Customize generated files
-    apply_updates(dest, args)
+    apply_updates(dest, args, writable_files=set(copied))
     skeleton_copied = []
     skeleton_skipped = []
     if getattr(args, "skeleton", None):
@@ -654,7 +724,7 @@ def cmd_init(args):
         )
         sys.exit(1)
 
-    apply_updates(dest, args)
+    apply_updates(dest, args, writable_files=set(copied))
     skeleton_copied = []
     skeleton_skipped = []
     if getattr(args, "skeleton", None):
@@ -690,9 +760,13 @@ def cmd_remove(args):
     # Find which managed files exist.
     found = []
     missing = []
+    unsafe = []
     for rel in REMOVABLE_FILES:
         path = os.path.join(dest, rel)
         if os.path.lexists(path):
+            if not _validate_managed_path(dest, path):
+                unsafe.append(rel)
+                continue
             is_dir = os.path.isdir(path) and not os.path.islink(path)
             found.append((rel, is_dir))
         else:
@@ -702,6 +776,8 @@ def cmd_remove(args):
         print("No agentinit-managed files found. Nothing to do.")
         if missing:
             print(f"  Already absent: {len(missing)} files")
+        if unsafe:
+            print(f"  Unsafe/skipped: {len(unsafe)} files")
         return
 
     # Describe what will happen.
@@ -717,6 +793,9 @@ def cmd_remove(args):
     if missing:
         for rel in missing:
             print(f"  - {rel} (already absent)")
+    if unsafe:
+        for rel in unsafe:
+            print(f"  ! {rel} (unsafe path; skipped)")
 
     if dry_run:
         actionable = sum(1 for _, is_dir in found if not is_dir)
@@ -796,6 +875,8 @@ def cmd_remove(args):
     # Cleanup empty directories.
     for d in CLEANUP_DIRS:
         dirpath = os.path.join(dest, d)
+        if os.path.islink(dirpath):
+            continue
         if os.path.isdir(dirpath) and not os.listdir(dirpath):
             os.rmdir(dirpath)
             print(f"  Cleaned up empty directory: {d}/")
@@ -872,6 +953,8 @@ def _dispatch_command(args, parser):
     if args.command in ("refresh-llms", "refresh"):
         dest = args.root or os.getcwd()
         elapsed = refresh_llms_txt(dest)
+        if elapsed is None:
+            sys.exit(1)
         print(f"Regenerated llms.txt in {elapsed:.3f}s")
         return
 
