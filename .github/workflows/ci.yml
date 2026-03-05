@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,7 +31,9 @@ jobs:
         run: python -m pip install --upgrade pip && pip install -e . --group dev
 
       - name: Run lint
-        run: python -m ruff check agentinit tests cli
+        run: |
+          python -m ruff check agentinit tests cli
+          python -m ruff format --check agentinit tests cli
 
   dependency-audit:
     runs-on: ubuntu-latest
@@ -72,8 +75,29 @@ jobs:
       - name: Run unit tests
         run: python3 -m pytest tests/ -v
 
+  package-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install packaging dependencies
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Validate package metadata
+        run: python -m twine check --strict dist/*
+
   smoke-test:
-    needs: [lint, dependency-audit, unit-tests]
+    needs: [lint, dependency-audit, unit-tests, package-check]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     strategy:

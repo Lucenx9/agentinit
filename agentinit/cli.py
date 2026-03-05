@@ -1,14 +1,32 @@
 #!/usr/bin/env python3
 """agentinit — scaffold agent context files into a project."""
 
-import argparse
-import importlib.metadata
 import os
-import re
 import shutil
 import sys
-import unicodedata
 from datetime import date, datetime
+
+from agentinit._add import (
+    ADD_RESOURCE_TYPES,
+    cmd_add as _cmd_add_impl,
+)
+from agentinit._llms import _render_llms_content as _render_llms_content_impl
+from agentinit._parser import build_parser as _build_parser_impl
+from agentinit._project_detect import (
+    _PURPOSE_PLACEHOLDER,
+    _clear_purpose_original_marker,
+    _detect_purpose_language,
+    _extract_purpose_text,
+    _purpose_seems_non_english,
+    _replace_commands_section,
+    _replace_purpose_text,
+    _run_detect,
+    _run_detect_conventions,
+    _set_purpose_original_marker,
+    _translate_text_to_english,
+)
+from agentinit._status import cmd_status as _cmd_status_impl
+from agentinit._sync import cmd_sync as _cmd_sync_impl
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template")
 SKELETONS_DIR = os.path.join(TEMPLATE_DIR, "skeletons")
@@ -149,6 +167,66 @@ def _resolves_within(root, path):
         return False
 
 
+def _template_source_for(rel, minimal):
+    """Resolve template source path for a managed file."""
+    if minimal and rel in MINIMAL_TEMPLATE_OVERRIDES:
+        override = os.path.join(TEMPLATE_DIR, MINIMAL_TEMPLATE_OVERRIDES[rel])
+        if os.path.exists(override):
+            return override
+    return os.path.join(TEMPLATE_DIR, rel)
+
+
+def _warn_skip(rel, message):
+    """Print a standardized skip warning."""
+    print(_c(message.format(rel=rel), _YELLOW, sys.stderr), file=sys.stderr)
+
+
+def _skip_existing_destination(rel, dst, force, skipped):
+    """Handle destination existence policy. Return True when caller should skip."""
+    if not os.path.lexists(dst):
+        return False
+    if os.path.islink(dst):
+        _warn_skip(rel, "Warning: destination is a symlink, skipping: {rel}")
+        skipped.append(rel)
+        return True
+    if os.path.isdir(dst):
+        _warn_skip(rel, "Warning: destination is a directory, skipping: {rel}")
+        skipped.append(rel)
+        return True
+    if rel == ".gitignore":
+        skipped.append(rel)
+        if force:
+            print(
+                _c("Note:", _YELLOW, sys.stderr)
+                + " .gitignore already exists, leaving it untouched.",
+                file=sys.stderr,
+            )
+        return True
+    if not force:
+        skipped.append(rel)
+        return True
+    return False
+
+
+def _copy_template_file(src, dst, rel, force, skipped):
+    """Copy one template file. Return True when copy succeeded."""
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    try:
+        shutil.copy2(src, dst)
+    except PermissionError:
+        if not force:
+            print(
+                _c("Warning:", _YELLOW, sys.stderr)
+                + f" permission denied, skipping: {rel}",
+                file=sys.stderr,
+            )
+            skipped.append(rel)
+            return False
+        os.chmod(dst, 0o644)
+        shutil.copy2(src, dst)
+    return True
+
+
 def copy_template(dest, force=False, minimal=False):
     """Copy template files into dest. Skip files that already exist unless force.
 
@@ -160,89 +238,27 @@ def copy_template(dest, force=False, minimal=False):
     dest_real = os.path.realpath(dest)
     files_to_copy = MINIMAL_MANAGED_FILES if minimal else MANAGED_FILES
     for rel in files_to_copy:
-        src = None
-        if minimal and rel in MINIMAL_TEMPLATE_OVERRIDES:
-            override = os.path.join(TEMPLATE_DIR, MINIMAL_TEMPLATE_OVERRIDES[rel])
-            if os.path.exists(override):
-                src = override
-        if src is None:
-            src = os.path.join(TEMPLATE_DIR, rel)
+        src = _template_source_for(rel, minimal)
         dst = os.path.join(dest, rel)
         if not os.path.exists(src):
             continue
         if not _resolves_within(dest_real, os.path.dirname(dst)):
-            print(
-                _c(
-                    f"Warning: destination parent resolves outside project, skipping: {rel}",
-                    _YELLOW,
-                    sys.stderr,
-                ),
-                file=sys.stderr,
+            _warn_skip(
+                rel,
+                "Warning: destination parent resolves outside project, skipping: {rel}",
             )
             skipped.append(rel)
             continue
-        if os.path.lexists(dst):
-            if os.path.islink(dst):
-                print(
-                    _c(
-                        f"Warning: destination is a symlink, skipping: {rel}",
-                        _YELLOW,
-                        sys.stderr,
-                    ),
-                    file=sys.stderr,
-                )
-                skipped.append(rel)
-                continue
-            if os.path.isdir(dst):
-                print(
-                    _c(
-                        f"Warning: destination is a directory, skipping: {rel}",
-                        _YELLOW,
-                        sys.stderr,
-                    ),
-                    file=sys.stderr,
-                )
-                skipped.append(rel)
-                continue
-            if rel == ".gitignore":
-                skipped.append(rel)
-                if force:
-                    print(
-                        _c("Note:", _YELLOW, sys.stderr)
-                        + " .gitignore already exists, leaving it untouched.",
-                        file=sys.stderr,
-                    )
-                continue
-            if not force:
-                skipped.append(rel)
-                continue
+        if _skip_existing_destination(rel, dst, force, skipped):
+            continue
         if not _resolves_within(dest_real, dst):
-            print(
-                _c(
-                    f"Warning: destination resolves outside project, skipping: {rel}",
-                    _YELLOW,
-                    sys.stderr,
-                ),
-                file=sys.stderr,
+            _warn_skip(
+                rel, "Warning: destination resolves outside project, skipping: {rel}"
             )
             skipped.append(rel)
             continue
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        try:
-            shutil.copy2(src, dst)
-        except PermissionError:
-            if force:
-                os.chmod(dst, 0o644)
-                shutil.copy2(src, dst)
-            else:
-                print(
-                    _c("Warning:", _YELLOW, sys.stderr)
-                    + f" permission denied, skipping: {rel}",
-                    file=sys.stderr,
-                )
-                skipped.append(rel)
-                continue
-        copied.append(rel)
+        if _copy_template_file(src, dst, rel, force, skipped):
+            copied.append(rel)
     return copied, skipped
 
 
@@ -263,9 +279,7 @@ def copy_skeleton(dest, skeleton, force=False):
         files.sort()
         rel_root = os.path.relpath(root, skeleton_root)
         for filename in files:
-            rel = os.path.normpath(
-                os.path.join(rel_root, filename)
-            ).replace("\\", "/")
+            rel = os.path.normpath(os.path.join(rel_root, filename)).replace("\\", "/")
             if rel == ".":
                 rel = filename
             src = os.path.join(root, filename)
@@ -286,799 +300,9 @@ def copy_skeleton(dest, skeleton, force=False):
     return copied, skipped
 
 
-_PURPOSE_PLACEHOLDER = "Describe what this project is for and expected outcomes."
-_PURPOSE_ORIGINAL_MARKER_PREFIX = "<!-- agentinit:purpose-original:"
-_PURPOSE_ORIGINAL_MARKER_RE = re.compile(
-    r"^<!--\s*agentinit:purpose-original:\s*(.*?)\s*-->\s*$",
-    re.MULTILINE,
-)
-
-_LANGUAGE_MARKERS = {
-    "it": {
-        "una",
-        "uno",
-        "semplice",
-        "gestire",
-        "progetto",
-        "applicazione",
-        "elenco",
-        "lista",
-        "con",
-        "per",
-        "delle",
-        "degli",
-        "della",
-        "todo",
-    },
-    "es": {
-        "una",
-        "simple",
-        "proyecto",
-        "aplicacion",
-        "lista",
-        "tareas",
-        "gestionar",
-        "con",
-        "para",
-        "crear",
-        "servicio",
-    },
-    "fr": {
-        "une",
-        "simple",
-        "projet",
-        "application",
-        "liste",
-        "taches",
-        "gerer",
-        "avec",
-        "pour",
-        "service",
-    },
-}
-
-_PURPOSE_EXACT_TRANSLATIONS = {
-    "una semplice api rest per gestire todo list con fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
-    "una simple api rest para gestionar una lista de tareas con fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
-    "une api rest simple pour gerer une liste de taches avec fastapi + sqlite": "A simple REST API to manage a todo list with FastAPI + SQLite",
-}
-
-_ROMANCE_TO_ENGLISH_REPLACEMENTS = [
-    (r"\bapi rest\b", "REST API"),
-    (r"\bapplication\b", "application"),
-    (r"\baplicaci[oó]n\b", "application"),
-    (r"\bprojet\b", "project"),
-    (r"\bproyecto\b", "project"),
-    (r"\blista de tareas\b", "todo list"),
-    (r"\bliste de t[aâ]ches\b", "todo list"),
-    (r"\btodo list\b", "todo list"),
-    (r"\bavec\b", "with"),
-    (r"\bcon\b", "with"),
-    (r"\bpour\b", "to"),
-    (r"\bpara\b", "to"),
-    (r"\bper\b", "to"),
-    (r"\bg[ée]rer\b", "manage"),
-    (r"\bgestionar\b", "manage"),
-    (r"\bgestire\b", "manage"),
-    (r"\bune\b", "a"),
-    (r"\buna\b", "a"),
-    (r"\bun\b", "a"),
-    (r"\bsimple\b", "simple"),
-    (r"\bsemplice\b", "simple"),
-]
-
-
-def _ascii_fold(text):
-    """Lowercase text and strip diacritics for lightweight language heuristics."""
-    normalized = unicodedata.normalize("NFKD", text.lower())
-    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
-def _extract_purpose_text(content):
-    """Extract Purpose text from docs/PROJECT.md content."""
-    for pattern in (r"^\*\*Purpose:\*\*\s*(.+)$", r"^Purpose:\s*(.+)$"):
-        match = re.search(pattern, content, re.MULTILINE)
-        if match:
-            return match.group(1).strip()
-    return ""
-
-
-def _extract_purpose_original_marker(content):
-    """Return preserved non-English purpose, if present."""
-    match = _PURPOSE_ORIGINAL_MARKER_RE.search(content)
-    if not match:
-        return ""
-    return match.group(1).strip()
-
-
-def _set_purpose_original_marker(content, original_purpose):
-    """Insert or update the purpose-original marker right below Purpose."""
-    sanitized = re.sub(r"\s+", " ", original_purpose).replace("-->", "").strip()
-    marker = f"{_PURPOSE_ORIGINAL_MARKER_PREFIX} {sanitized} -->"
-    if _PURPOSE_ORIGINAL_MARKER_RE.search(content):
-        return _PURPOSE_ORIGINAL_MARKER_RE.sub(marker, content, count=1)
-
-    pattern = re.compile(r"^(\*\*Purpose:\*\*.+)$", re.MULTILINE)
-    if pattern.search(content):
-        return pattern.sub(rf"\1\n{marker}", content, count=1)
-    return content
-
-
-def _clear_purpose_original_marker(content):
-    """Remove any purpose-original marker from content."""
-    return _PURPOSE_ORIGINAL_MARKER_RE.sub("", content)
-
-
-def _replace_purpose_text(content, new_purpose):
-    """Replace Purpose value in PROJECT.md content."""
-    for pattern in (r"(\*\*Purpose:\*\*\s*)(.+)", r"(Purpose:\s*)(.+)"):
-        updated, count = re.subn(
-            pattern,
-            lambda m: f"{m.group(1)}{new_purpose}",
-            content,
-            count=1,
-            flags=re.MULTILINE,
-        )
-        if count:
-            return updated
-    return content
-
-
-def _detect_purpose_language(text):
-    """Best-effort language detection for purpose text."""
-    if not text:
-        return "unknown"
-    folded = _ascii_fold(text)
-    tokens = {tok for tok in re.findall(r"[a-z]+", folded) if len(tok) >= 2}
-    if not tokens:
-        return "unknown"
-    scores = {
-        lang: len(tokens.intersection(markers))
-        for lang, markers in _LANGUAGE_MARKERS.items()
-    }
-    best_lang, best_score = max(scores.items(), key=lambda item: item[1])
-    if best_score >= 2:
-        return best_lang
-    return "en"
-
-
-def _purpose_seems_non_english(text):
-    """Backwards-compatible check for non-English purpose text."""
-    return _detect_purpose_language(text) in {"it", "es", "fr"}
-
-
-def _translate_text_to_english(text):
-    """Translate common Romance-language project phrasing to English."""
-    if not text:
-        return text
-    normalized = re.sub(r"\s+", " ", _ascii_fold(text.strip()))
-    if normalized in _PURPOSE_EXACT_TRANSLATIONS:
-        return _PURPOSE_EXACT_TRANSLATIONS[normalized]
-
-    translated = text
-    for pattern, repl in _ROMANCE_TO_ENGLISH_REPLACEMENTS:
-        translated = re.sub(pattern, repl, translated, flags=re.IGNORECASE)
-    translated = re.sub(r"\s+", " ", translated).strip()
-    if not translated:
-        return text
-    return translated[0].upper() + translated[1:]
-
-
-def _infer_python_setup_command_from_purpose(purpose_text):
-    """Infer Python setup command from purpose phrasing."""
-    lower = purpose_text.lower()
-    if "poetry" in lower:
-        return "poetry install"
-    if (
-        re.search(r"\buv\b", lower)
-        or "uvicorn" in lower
-        or "fastapi moderno" in lower
-        or "modern fastapi" in lower
-    ):
-        return "uv sync"
-    return "pip install -e ."
-
-
-def _detect_from_purpose(content):
-    """Infer baseline stack/commands from Purpose when manifests are missing."""
-    purpose = _extract_purpose_text(content)
-    if not purpose or purpose == _PURPOSE_PLACEHOLDER:
-        return {}, {}
-
-    lower = purpose.lower()
-    stack_updates = {}
-    cmd_updates = {}
-
-    mentions_python = any(
-        term in lower for term in ("python", "fastapi", "flask", "django")
-    )
-    if mentions_python:
-        stack_updates["- **Language(s):** (not configured)"] = "- **Language(s):** Python"
-        stack_updates["- **Runtime:** (not configured)"] = "- **Runtime:** Python 3.12"
-        setup_cmd = _infer_python_setup_command_from_purpose(purpose)
-        cmd_updates["- Setup: (not configured)"] = f"- Setup: {setup_cmd}"
-        cmd_updates["- Test: (not configured)"] = "- Test: pytest -q"
-        cmd_updates["- Lint/Format: (not configured)"] = "- Lint/Format: ruff check ."
-
-    if "fastapi" in lower:
-        stack_updates["- **Framework(s):** (not configured)"] = (
-            "- **Framework(s):** FastAPI + Uvicorn"
-        )
-        cmd_updates["- Run: (not configured)"] = "- Run: uvicorn main:app --reload"
-    elif "django" in lower:
-        stack_updates["- **Framework(s):** (not configured)"] = "- **Framework(s):** Django"
-        cmd_updates["- Run: (not configured)"] = "- Run: python manage.py runserver"
-    elif "flask" in lower:
-        stack_updates["- **Framework(s):** (not configured)"] = "- **Framework(s):** Flask"
-        cmd_updates["- Run: (not configured)"] = (
-            "- Run: flask --app main.py run --debug"
-        )
-
-    if "sqlite" in lower:
-        stack_updates["- **Storage/Infra:** (not configured)"] = (
-            "- **Storage/Infra:** SQLite"
-        )
-    elif "postgres" in lower or "postgresql" in lower:
-        stack_updates["- **Storage/Infra:** (not configured)"] = (
-            "- **Storage/Infra:** PostgreSQL"
-        )
-    elif "mysql" in lower:
-        stack_updates["- **Storage/Infra:** (not configured)"] = (
-            "- **Storage/Infra:** MySQL"
-        )
-
-    return stack_updates, cmd_updates
-
-
-def _run_detect_conventions(project_content, conventions_content):
-    """Fill conventions placeholders with stack-aware defaults."""
-    lower = project_content.lower()
-    is_python = "- **language(s):** python" in lower
-    has_fastapi = "fastapi" in lower
-    if not is_python:
-        return conventions_content
-
-    replacements = {
-        "- **Formatting standard:** (not configured)": "- **Formatting standard:** Ruff (`ruff check .` + `ruff format .`)",
-        "- **Commenting expectations:** (not configured)": "- **Commenting expectations:** Docstrings for public modules and API surface; comments only for non-obvious decisions.",
-        "- **Files/directories:** (not configured)": "- **Files/directories:** `snake_case` for files/modules, grouped by feature/domain.",
-        "- **Variables/functions/types:** (not configured)": "- **Variables/functions/types:** `snake_case` for variables/functions, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.",
-        "- **Branch naming:** (not configured)": "- **Branch naming:** `feature/<scope>`, `fix/<scope>`, `chore/<scope>`.",
-        "- **Required test types:** (not configured)": "- **Required test types:** Unit tests with `pytest`; add integration/API tests for behavior-critical flows.",
-        "- **Minimum coverage/gates:** (not configured)": "- **Minimum coverage/gates:** Tests must pass in CI before merge.",
-        "- **Test data/fixtures:** (not configured)": "- **Test data/fixtures:** Reuse fixtures from `tests/conftest.py`; keep fixture scope minimal.",
-        "- **Commit message format:** (not configured)": "- **Commit message format:** Conventional Commits (`feat:`, `fix:`, `chore:`).",
-        "- **PR requirements/reviews:** (not configured)": "- **PR requirements/reviews:** Green CI and at least one reviewer approval.",
-        "- **Merge strategy:** (not configured)": "- **Merge strategy:** Squash merge.",
-    }
-    if has_fastapi:
-        replacements["- **Required test types:** (not configured)"] = (
-            "- **Required test types:** Unit tests with `pytest` plus API integration tests for endpoints."
-        )
-
-    updated = conventions_content
-    for old, new in replacements.items():
-        updated = updated.replace(old, new)
-    return updated
-
-
-def _run_detect(dest, project_path, content):
-    """Detect stack and commands from manifests and return updated content."""
-    import json
-
-    stack_updates = {}
-    cmd_updates = {}
-
-    # 1. Node: package.json
-    pkg_json_path = os.path.join(dest, "package.json")
-    if os.path.isfile(pkg_json_path):
-        try:
-            with open(pkg_json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            stack_updates["- **Runtime:** (not configured)"] = "- **Runtime:** Node.js"
-
-            pm = str(data.get("packageManager") or "")
-            manager = "npm"
-            if "pnpm" in pm:
-                manager = "pnpm"
-            elif "yarn" in pm:
-                manager = "yarn"
-            elif "bun" in pm:
-                manager = "bun"
-            else:
-                if os.path.isfile(os.path.join(dest, "pnpm-lock.yaml")):
-                    manager = "pnpm"
-                elif os.path.isfile(os.path.join(dest, "yarn.lock")):
-                    manager = "yarn"
-                elif os.path.isfile(os.path.join(dest, "bun.lockb")):
-                    manager = "bun"
-                else:
-                    manager = "npm"
-
-            scripts = data.get("scripts")
-            if not isinstance(scripts, dict):
-                scripts = {}
-            run_prefix = (
-                f"{manager} run " if manager not in ("yarn", "bun") else f"{manager} "
-            )
-
-            if "setup" in scripts:
-                cmd_updates["- Setup: (not configured)"] = f"- Setup: {run_prefix}setup"
-            else:
-                cmd_updates["- Setup: (not configured)"] = f"- Setup: {manager} install"
-
-            if "build" in scripts:
-                cmd_updates["- Build: (not configured)"] = f"- Build: {run_prefix}build"
-            if "test" in scripts:
-                cmd_updates["- Test: (not configured)"] = f"- Test: {run_prefix}test"
-            if "lint" in scripts:
-                cmd_updates["- Lint/Format: (not configured)"] = (
-                    f"- Lint/Format: {run_prefix}lint"
-                )
-            elif "format" in scripts:
-                cmd_updates["- Lint/Format: (not configured)"] = (
-                    f"- Lint/Format: {run_prefix}format"
-                )
-            if "dev" in scripts:
-                cmd_updates["- Run: (not configured)"] = f"- Run: {run_prefix}dev"
-            elif "start" in scripts:
-                cmd_updates["- Run: (not configured)"] = f"- Run: {run_prefix}start"
-        except Exception:
-            pass
-
-    # 2. Go: go.mod
-    go_mod_path = os.path.join(dest, "go.mod")
-    if os.path.isfile(go_mod_path):
-        try:
-            with open(go_mod_path, "r", encoding="utf-8") as f:
-                go_version = None
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("go "):
-                        go_version = line.split(" ")[1]
-                        break
-
-            stack_updates["- **Language(s):** (not configured)"] = (
-                "- **Language(s):** Go"
-            )
-            if go_version:
-                stack_updates["- **Runtime:** (not configured)"] = (
-                    f"- **Runtime:** Go {go_version}"
-                )
-
-            cmd_updates["- Setup: (not configured)"] = "- Setup: go mod download"
-            cmd_updates["- Build: (not configured)"] = "- Build: go build ./..."
-            cmd_updates["- Test: (not configured)"] = "- Test: go test ./..."
-            cmd_updates["- Run: (not configured)"] = "- Run: go run ."
-        except Exception:
-            pass
-
-    # TOML parsers (Python, Rust)
-    try:
-        import tomllib
-    except ImportError:
-        tomllib = None
-
-    if not tomllib:
-        toml_files = [
-            f
-            for f in ("pyproject.toml", "Cargo.toml")
-            if os.path.isfile(os.path.join(dest, f))
-        ]
-        if toml_files:
-            print(
-                _c("Warning:", _YELLOW, sys.stderr)
-                + f" TOML detection ({', '.join(toml_files)}) skipped — "
-                "requires Python 3.11+. Run with Python 3.11 or later for full detection.",
-                file=sys.stderr,
-            )
-
-    if tomllib:
-        # 3. Rust: Cargo.toml
-        cargo_path = os.path.join(dest, "Cargo.toml")
-        if os.path.isfile(cargo_path):
-            try:
-                with open(cargo_path, "rb") as f:
-                    cargo_data = tomllib.load(f)
-
-                pkg = cargo_data.get("package")
-                if not isinstance(pkg, dict):
-                    pkg = {}
-                edition = pkg.get("edition", "")
-
-                lang_str = "- **Language(s):** Rust"
-                if edition:
-                    lang_str += f" ({edition})"
-                stack_updates["- **Language(s):** (not configured)"] = lang_str
-
-                cmd_updates["- Setup: (not configured)"] = "- Setup: cargo fetch"
-                cmd_updates["- Build: (not configured)"] = "- Build: cargo build"
-                cmd_updates["- Test: (not configured)"] = "- Test: cargo test"
-                cmd_updates["- Lint/Format: (not configured)"] = (
-                    "- Lint/Format: cargo fmt && cargo clippy"
-                )
-                cmd_updates["- Run: (not configured)"] = "- Run: cargo run"
-            except Exception:
-                pass
-
-        # 4. Python: pyproject.toml
-        pyproject_path = os.path.join(dest, "pyproject.toml")
-        if os.path.isfile(pyproject_path):
-            try:
-                with open(pyproject_path, "rb") as f:
-                    py_data = tomllib.load(f)
-
-                manager = "pip"
-                tool = py_data.get("tool")
-                if isinstance(tool, dict):
-                    if "poetry" in tool:
-                        manager = "poetry"
-                    elif "uv" in tool:
-                        manager = "uv"
-                    elif "pdm" in tool:
-                        manager = "pdm"
-
-                project = py_data.get("project")
-                if not isinstance(project, dict):
-                    project = {}
-                requires_python = project.get("requires-python", "")
-
-                stack_updates["- **Language(s):** (not configured)"] = (
-                    "- **Language(s):** Python"
-                )
-                if requires_python:
-                    stack_updates["- **Runtime:** (not configured)"] = (
-                        f"- **Runtime:** Python {requires_python}"
-                    )
-
-                if manager == "poetry":
-                    cmd_updates["- Setup: (not configured)"] = "- Setup: poetry install"
-                    cmd_updates["- Run: (not configured)"] = "- Run: poetry run python"
-                elif manager == "uv":
-                    cmd_updates["- Setup: (not configured)"] = "- Setup: uv sync"
-                    cmd_updates["- Run: (not configured)"] = "- Run: uv run python"
-                elif manager == "pdm":
-                    cmd_updates["- Setup: (not configured)"] = "- Setup: pdm install"
-                    cmd_updates["- Run: (not configured)"] = "- Run: pdm run python"
-                else:
-                    cmd_updates["- Setup: (not configured)"] = (
-                        "- Setup: pip install -e ."
-                    )
-            except Exception:
-                pass
-
-    purpose_stack_updates, purpose_cmd_updates = _detect_from_purpose(content)
-    for key, value in purpose_stack_updates.items():
-        stack_updates.setdefault(key, value)
-    for key, value in purpose_cmd_updates.items():
-        cmd_updates.setdefault(key, value)
-
-    for k, v in stack_updates.items():
-        content = content.replace(k, v)
-    for k, v in cmd_updates.items():
-        content = content.replace(k, v)
-
-    return content
-
-
-_COMMANDS_START = "<!-- agentinit:commands:start -->"
-_COMMANDS_END = "<!-- agentinit:commands:end -->"
-_COMMANDS_NOTE = "<!-- managed by agentinit --detect / --prompt -->"
-
-
-def _replace_commands_section(content, new_body):
-    """Replace content between commands markers, preserving surrounding text."""
-    pattern = re.compile(
-        re.escape(_COMMANDS_START) + r".*?" + re.escape(_COMMANDS_END),
-        re.DOTALL,
-    )
-    replacement = f"{_COMMANDS_START}\n{_COMMANDS_NOTE}\n{new_body}\n{_COMMANDS_END}"
-    new_content = pattern.sub(lambda m: replacement, content, count=1)
-    return new_content
-
-
-_LLMS_DEFAULT_SUMMARY = "(not configured - run init to set project name and description)"
-_LLMS_KEY_FILES = [
-    ("AGENTS.md", "Instructions and Rules"),
-    ("docs/STATE.md", "Current State & Focus"),
-    ("docs/CONVENTIONS.md", "Development Conventions"),
-    ("docs/TODO.md", "Pending Tasks"),
-    ("docs/DECISIONS.md", "Architectural Log"),
-]
-_LLMS_MAX_MANDATES = 8
-
-
-def _resolve_project_context_path(dest):
-    """Resolve project context file preferring docs/PROJECT.md, then PROJECT.md."""
-    candidates = [
-        os.path.join(dest, "docs", "PROJECT.md"),
-        os.path.join(dest, "PROJECT.md"),
-    ]
-    for candidate in candidates:
-        if os.path.isfile(candidate):
-            return candidate
-    return candidates[0]
-
-
-def _extract_project_name(dest, project_path):
-    """Infer project name from manifests, then docs/PROJECT.md, then folder name."""
-    pyproject_path = os.path.join(dest, "pyproject.toml")
-    if os.path.isfile(pyproject_path):
-        try:
-            import tomllib
-
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-            project = data.get("project")
-            if isinstance(project, dict):
-                name = str(project.get("name") or "").strip()
-                if name:
-                    return name
-        except Exception:
-            pass
-
-    package_json_path = os.path.join(dest, "package.json")
-    if os.path.isfile(package_json_path):
-        try:
-            import json
-
-            with open(package_json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            name = str(data.get("name") or "").strip()
-            if name:
-                return name
-        except Exception:
-            pass
-
-    if os.path.isfile(project_path):
-        with open(project_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-        if match:
-            title = match.group(1).strip()
-            if title and title.lower() not in {"project", "project context", "context"}:
-                return title
-
-    folder_name = os.path.basename(os.path.abspath(dest)).strip()
-    return folder_name or "Project"
-
-
-def _extract_stack_field(content, field_name):
-    """Extract a Stack field value from docs/PROJECT.md."""
-    pattern = re.compile(
-        rf"^- \*\*{re.escape(field_name)}:\*\*\s*(.+)$",
-        re.MULTILINE,
-    )
-    match = pattern.search(content)
-    if not match:
-        return ""
-    value = match.group(1).strip()
-    if not value or "(not configured)" in value:
-        return ""
-    return value
-
-
-def _detect_project_summary(dest):
-    """Infer a one-line summary from common project manifests."""
-    # Prefer pyproject.toml when available.
-    pyproject_path = os.path.join(dest, "pyproject.toml")
-    if os.path.isfile(pyproject_path):
-        requires_python = ""
-        try:
-            import tomllib
-
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-            project = data.get("project")
-            if isinstance(project, dict):
-                requires_python = str(project.get("requires-python") or "").strip()
-        except Exception:
-            try:
-                with open(pyproject_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-                match = re.search(
-                    r'^\s*requires-python\s*=\s*["\']([^"\']+)["\']\s*$',
-                    text,
-                    re.MULTILINE,
-                )
-                if match:
-                    requires_python = match.group(1).strip()
-            except Exception:
-                requires_python = ""
-
-        runtime = "Python"
-        if requires_python:
-            runtime = f"Python {requires_python}"
-        return f"{runtime} project."
-
-    package_json_path = os.path.join(dest, "package.json")
-    if os.path.isfile(package_json_path):
-        return "Node.js project."
-
-    go_mod_path = os.path.join(dest, "go.mod")
-    if os.path.isfile(go_mod_path):
-        return "Go project."
-
-    cargo_path = os.path.join(dest, "Cargo.toml")
-    if os.path.isfile(cargo_path):
-        return "Rust project."
-
-    return ""
-
-
-def _extract_project_summary(dest, project_path):
-    """Return a one-line project summary from PROJECT.md or manifest detection."""
-    if not os.path.isfile(project_path):
-        detected = _detect_project_summary(dest)
-        return detected or _LLMS_DEFAULT_SUMMARY
-
-    with open(project_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    for pattern in (r"^\*\*Purpose:\*\*\s*(.+)$", r"^Purpose:\s*(.+)$"):
-        match = re.search(pattern, content, re.MULTILINE)
-        if not match:
-            continue
-        summary = match.group(1).strip()
-        if summary and "Describe what this project is for" not in summary:
-            return summary
-
-    language = _extract_stack_field(content, "Language(s)")
-    runtime = _extract_stack_field(content, "Runtime")
-    framework = _extract_stack_field(content, "Framework(s)")
-    parts = [part for part in (language, framework, runtime) if part]
-    if parts:
-        return f"{' | '.join(parts)} project."
-
-    detected = _detect_project_summary(dest)
-    if detected:
-        return detected
-
-    return _LLMS_DEFAULT_SUMMARY
-
-
-def _mandate_priority(line):
-    """Score mandates so llms.txt keeps the most critical constraints first."""
-    score = 0
-    upper = line.upper()
-    if "YOU MUST ALWAYS" in upper or "YOU MUST NEVER" in upper:
-        score += 5
-    if "MUST NEVER" in upper:
-        score += 3
-    if "MUST ALWAYS" in upper:
-        score += 2
-    if (
-        "DOCS/STATE.MD" in upper
-        or "DOCS/TODO.MD" in upper
-        or "DOCS/DECISIONS.MD" in upper
-    ):
-        score += 2
-    if "DO NOT ASK FOR PERMISSION" in upper:
-        score += 1
-    if "AUTONOMOUS" in upper:
-        score += 1
-    return score
-
-
-def _extract_hardened_mandates(agents_path):
-    """Extract MUST ALWAYS / MUST NEVER mandates from AGENTS.md."""
-    scored = []
-    seen = set()
-    mandates_url = "AGENTS.md"
-    if os.path.isfile(agents_path):
-        with open(agents_path, "r", encoding="utf-8") as f:
-            index = 0
-            for raw_line in f:
-                clean = raw_line.strip()
-                clean = re.sub(r"^>\s*", "", clean)
-                clean = re.sub(r"^[-*]\s*", "", clean)
-                if not clean:
-                    continue
-                if "MUST ALWAYS" not in clean and "MUST NEVER" not in clean:
-                    continue
-                bullet = f"- [{clean}]({mandates_url})"
-                if bullet not in seen:
-                    seen.add(bullet)
-                    scored.append((index, _mandate_priority(clean), bullet))
-                index += 1
-
-    mandates = []
-    if scored:
-        top = sorted(scored, key=lambda item: (-item[1], item[0]))[:_LLMS_MAX_MANDATES]
-        top.sort(key=lambda item: item[0])
-        mandates = [item[2] for item in top]
-
-    if not mandates:
-        mandates.append("- [No explicit MUST ALWAYS/MUST NEVER mandates found](AGENTS.md)")
-    return mandates
-
-
-def _build_key_files_list(dest):
-    """Build the Key Files section with availability markers."""
-    key_files = []
-    for rel_path, description in _LLMS_KEY_FILES:
-        full_path = os.path.join(dest, rel_path)
-        suffix = "" if os.path.isfile(full_path) else " (missing in this profile)"
-        key_files.append(f"- [{rel_path}]({rel_path}): {description}{suffix}")
-    return key_files
-
-
-def _list_agents_entries(dest):
-    """List all entries under .agents/ for Skills & Routers."""
-    agents_dir = os.path.join(dest, ".agents")
-    entries = []
-    if os.path.isdir(agents_dir):
-        for root, dirs, files in os.walk(agents_dir):
-            dirs.sort()
-            files.sort()
-            for dirname in dirs:
-                rel_dir = os.path.relpath(os.path.join(root, dirname), dest).replace(
-                    os.sep, "/"
-                )
-                entries.append(f"- [{rel_dir}/]({rel_dir}/)")
-            for filename in files:
-                rel_file = os.path.relpath(os.path.join(root, filename), dest).replace(
-                    os.sep, "/"
-                )
-                entries.append(f"- [{rel_file}]({rel_file})")
-
-    if not entries:
-        entries.append("- [No additional skills or routers configured](AGENTS.md)")
-    return entries
-
-
 def _render_llms_content(dest):
     """Render llms.txt from project files using the llms template."""
-    project_path = _resolve_project_context_path(dest)
-    project_name = _extract_project_name(dest, project_path)
-    summary = _extract_project_summary(dest, project_path)
-    if os.path.isfile(project_path):
-        with open(project_path, "r", encoding="utf-8") as f:
-            project_content = f.read()
-        original_purpose = _extract_purpose_original_marker(project_content)
-        translated_purpose = _extract_purpose_text(project_content)
-        if (
-            original_purpose
-            and translated_purpose
-            and translated_purpose != _PURPOSE_PLACEHOLDER
-        ):
-            project_name = translated_purpose
-            summary = original_purpose
-    key_files = _build_key_files_list(dest)
-    mandates = _extract_hardened_mandates(os.path.join(dest, "AGENTS.md"))
-    skills = _list_agents_entries(dest)
-
-    template_path = os.path.join(TEMPLATE_DIR, "llms.txt")
-    if os.path.isfile(template_path):
-        with open(template_path, "r", encoding="utf-8") as f:
-            content = f.read()
-    else:
-        content = (
-            "# {{PROJECT_NAME}}\n> {{PROJECT_SUMMARY}}\n\n"
-            "## Key Files\n{{KEY_FILES}}\n\n"
-            "## Hardened Mandates\n{{HARDENED_MANDATES}}\n\n"
-            "## Skills & Routers\n{{SKILLS_AND_ROUTERS}}\n"
-        )
-
-    replacements = {
-        "{{PROJECT_NAME}}": project_name,
-        "{{PROJECT_SUMMARY}}": summary,
-        "{{KEY_FILES}}": "\n".join(key_files),
-        "{{HARDENED_MANDATES}}": "\n".join(mandates),
-        "{{SKILLS_AND_ROUTERS}}": "\n".join(skills),
-    }
-    if all(token in content for token in replacements):
-        for token, value in replacements.items():
-            content = content.replace(token, value)
-        return content
-
-    return (
-        f"# {project_name}\n> {summary}\n\n"
-        f"## Key Files\n{replacements['{{KEY_FILES}}']}\n\n"
-        f"## Hardened Mandates\n{replacements['{{HARDENED_MANDATES}}']}\n\n"
-        f"## Skills & Routers\n{replacements['{{SKILLS_AND_ROUTERS}}']}\n"
-    )
+    return _render_llms_content_impl(dest, TEMPLATE_DIR)
 
 
 def apply_updates(dest, args):
@@ -1579,525 +803,22 @@ def cmd_remove(args):
 
 def cmd_status(args):
     """Show the status of agentinit context files in the current directory."""
-    dest = os.path.abspath(".")
-    minimal_mode = bool(getattr(args, "minimal", False))
-
-    missing = []
-    tbd = []
-    hard_violations = []
-    broken_refs = []
-    file_sizes = []
-    files_to_check = MINIMAL_MANAGED_FILES if minimal_mode else MANAGED_FILES
-    minimal_ref_paths = {
-        os.path.normpath(p).replace("\\", "/") for p in MINIMAL_MANAGED_FILES
-    }
-
-    print(f"{_c('Agent Context Status', _BOLD)}")
-    print(f"Directory: {dest}\n")
-
-    for rel in files_to_check:
-        path = os.path.join(dest, rel)
-        if os.path.islink(path) and not os.path.exists(path):
-            missing.append(rel)
-            print(f"  {_c('x', _RED)} {rel} {_c('(broken symlink)', _RED)}")
-        elif not os.path.exists(path):
-            missing.append(rel)
-            print(f"  {_c('x', _RED)} {rel} {_c('(missing)', _RED)}")
-        elif not os.path.isfile(path):
-            missing.append(rel)
-            print(f"  {_c('x', _RED)} {rel} {_c('(not a file)', _RED)}")
-        else:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    content = f.read()
-
-                lines = content.splitlines()
-                line_count = len(lines)
-                file_sizes.append((rel, line_count))
-                is_always_loaded = not rel.startswith("docs/") and rel not in {
-                    ".gitignore",
-                    ".contextlintrc.json",
-                }
-
-                status_symbol = _c("+", _GREEN)
-                msgs = []
-                hints = []
-
-                if "TBD" in content:
-                    tbd.append(rel)
-                    status_symbol = _c("!", _YELLOW)
-                    msgs.append(_c("(contains TBD, needs update)", _YELLOW))
-
-                if line_count >= 300 and is_always_loaded:
-                    hard_violations.append(rel)
-                    status_symbol = _c("x", _RED)
-                    msgs.append(_c(f"({line_count} lines >= 300)", _RED))
-                    if "CLAUDE.md" in rel or "GEMINI.md" in rel:
-                        hints.append(
-                            f"Move details to docs/ and keep {os.path.basename(rel)} as a router (10–20 lines)."
-                        )
-                    elif "AGENTS.md" in rel:
-                        hints.append("Split AGENTS.md into topic docs and link them.")
-                    else:
-                        hints.append(f"Reduce size of {rel} to keep context lean.")
-                elif line_count >= 200:
-                    status_symbol = (
-                        _c("!", _YELLOW)
-                        if status_symbol != _c("x", _RED)
-                        else status_symbol
-                    )
-                    msgs.append(_c(f"({line_count} lines >= 200)", _YELLOW))
-                    if is_always_loaded:
-                        hints.append(
-                            f"Consider moving details from {os.path.basename(rel)} to docs/."
-                        )
-                    else:
-                        hints.append(
-                            "Consider splitting this document if it grows further."
-                        )
-
-                msg_str = " ".join(msgs)
-                print(f"  {status_symbol} {rel} {msg_str}".rstrip())
-                for hint in hints:
-                    print(f"      {_c('Hint:', _CYAN)} {hint}")
-
-                if rel == "AGENTS.md":
-                    # Check broken references
-                    md_links = re.findall(r"\[.*?\]\(([^)]+)\)", content)
-                    code_links = re.findall(r"`([^`\n]+)`", content)
-
-                    potential_paths = set(md_links + code_links)
-                    for line in lines:
-                        line = line.strip()
-                        if (
-                            line
-                            and " " not in line
-                            and ("/" in line or "\\" in line)
-                            and not line.startswith("#")
-                            and "](" not in line
-                        ):
-                            potential_paths.add(line)
-
-                    seen_broken = set()
-                    dest_real = os.path.realpath(dest)
-                    for p in potential_paths:
-                        p = p.split("#", 1)[0]
-                        p = p.split("?", 1)[0]
-                        p = p.strip()
-                        if " " in p:
-                            p = p.split()[0]
-
-                        if not p:
-                            continue
-                        if p.startswith(("http://", "https://", "mailto:", "/")):
-                            continue
-                        if "*" in p:
-                            continue
-                        if not (
-                            "/" in p
-                            or "\\" in p
-                            or p.endswith(
-                                (".md", ".mdc", ".txt", ".py", ".yml", ".yaml")
-                            )
-                        ):
-                            continue
-                        norm_p = os.path.normpath(p).replace("\\", "/")
-                        if minimal_mode and norm_p not in minimal_ref_paths:
-                            continue
-
-                        target_path = os.path.join(dest_real, p)
-                        if not _resolves_within(dest_real, target_path):
-                            continue
-
-                        target_real = os.path.realpath(target_path)
-                        if not os.path.exists(target_real):
-                            if norm_p not in seen_broken:
-                                seen_broken.add(norm_p)
-                                broken_refs.append(norm_p)
-                                print(
-                                    f"      {_c('x', _RED)} Broken reference: {norm_p}"
-                                )
-                                print(
-                                    f"      {_c('Hint:', _CYAN)} Fix broken link: create {norm_p} or remove the reference."
-                                )
-
-            except (OSError, UnicodeDecodeError):
-                missing.append(rel)
-                print(f"  {_c('x', _RED)} {rel} {_c('(unreadable)', _RED)}")
-
-    # --- Context checks (contextlint) ---
-    contextlint_hard = False
-    contextlint_failed = False
-    try:
-        from agentinit.contextlint_adapter import get_checks_module
-
-        checks_mod = get_checks_module()
-        lint_result = checks_mod.run_checks(
-            root=__import__("pathlib").Path(dest),
-        )
-        cl_hards = [d for d in lint_result.diagnostics if d.hard]
-        cl_softs = [d for d in lint_result.diagnostics if not d.hard]
-        if lint_result.diagnostics:
-            print(f"\n{_c('Context checks (contextlint):', _BOLD)}")
-            for d in lint_result.diagnostics:
-                prefix = _c("ERROR", _RED) if d.hard else _c("warn", _YELLOW)
-                loc = f"{d.path}:{d.lineno}" if d.lineno else d.path
-                print(f"  {prefix}  {loc}: {d.message}")
-            offenders = checks_mod.top_offenders(lint_result)
-            if offenders:
-                print(f"\n  {_c('Top offenders by size:', _YELLOW)}")
-                for path, size in offenders:
-                    print(f"    {path}: {size} lines")
-            print(
-                f"\n  contextlint: {len(cl_hards)} error(s), {len(cl_softs)} warning(s)"
-            )
-            if cl_hards:
-                contextlint_hard = True
-    except Exception as e:
-        contextlint_failed = True
-        contextlint_hard = True
-        print(
-            _c("Warning:", _YELLOW, sys.stderr)
-            + f" contextlint checks unavailable: {e}",
-            file=sys.stderr,
-        )
-
-    print()
-    if missing or tbd or hard_violations or broken_refs or contextlint_hard:
-        issues = []
-        if missing:
-            issues.append(f"{len(missing)} missing")
-        if tbd:
-            issues.append(f"{len(tbd)} incomplete")
-        if hard_violations:
-            issues.append(f"{len(hard_violations)} too large")
-        if broken_refs:
-            issues.append(f"{len(broken_refs)} broken refs")
-        if contextlint_failed:
-            issues.append("contextlint unavailable")
-        elif contextlint_hard:
-            issues.append("contextlint errors")
-
-        print(f"{_c('Top offenders:', _YELLOW)}")
-        if file_sizes:
-            filtered = [(f, n) for f, n in file_sizes if f != ".gitignore"]
-            filtered.sort(key=lambda x: x[1], reverse=True)
-            for f_rel, f_lines in filtered[:3]:
-                print(f"  {f_rel} ({f_lines} lines)")
-        if broken_refs:
-            print(f"  AGENTS.md: {len(broken_refs)} broken references")
-        print()
-
-        print(f"Result: {_c('Action required', _YELLOW)} ({', '.join(issues)})")
-        if args.check:
-            sys.exit(1)
-    else:
-        print(
-            f"Result: {_c('Ready', _GREEN)} (All files present, filled, and within budgets)"
-        )
-        if args.check:
-            sys.exit(0)
-
-
-# ---------------------------------------------------------------------------
-# agentinit add — modular resource installer
-# ---------------------------------------------------------------------------
-
-ADD_TEMPLATE_DIR = os.path.join(TEMPLATE_DIR, "add")
-
-# Registry of resource types.  Each entry maps to:
-#   template_src  — path inside ADD_TEMPLATE_DIR (may contain {name})
-#   dest_pattern  — path under project root     (may contain {name})
-#   agents_section— heading to append a reference under in AGENTS.md (or None)
-#   needs_name    — whether the "name" positional arg is required
-#   is_dir        — whether the resource is a directory tree (skills)
-
-_ADD_HANDLERS = {
-    "skill": {
-        "template_src": os.path.join("skills", "{name}"),
-        "dest_pattern": os.path.join(".agents", "skills", "{name}"),
-        "dest_pattern_alt": os.path.join(".claude", "skills", "{name}"),
-        "agents_section": None,
-        "needs_name": True,
-        "is_dir": True,
-    },
-    "mcp": {
-        "template_src": os.path.join("mcp", "{name}.md"),
-        "dest_pattern": os.path.join(".agents", "mcp-{name}.md"),
-        "agents_section": "## Tools & Integrations",
-        "needs_name": True,
-        "is_dir": False,
-    },
-    "security": {
-        "template_src": "security.md",
-        "dest_pattern": os.path.join(".agents", "security.md"),
-        "agents_section": "## Rules & Guardrails",
-        "needs_name": False,
-        "is_dir": False,
-    },
-    "soul": {
-        "template_src": "soul.md",
-        "dest_pattern": os.path.join(".agents", "soul.md"),
-        "agents_section": "## Personality",
-        "needs_name": False,
-        "is_dir": False,
-    },
-}
-
-
-def _list_available(resource_type):
-    """List available items for a resource type."""
-    handler = _ADD_HANDLERS[resource_type]
-    src_pattern = handler["template_src"]
-
-    if handler["needs_name"]:
-        # List entries in the parent directory of the template.
-        parent = os.path.join(ADD_TEMPLATE_DIR, os.path.dirname(src_pattern))
-        if not os.path.isdir(parent):
-            return []
-        entries = sorted(os.listdir(parent))
-        # Filter to actual template items.
-        if handler["is_dir"]:
-            return [e for e in entries if os.path.isdir(os.path.join(parent, e))]
-        return [
-            os.path.splitext(e)[0]
-            for e in entries
-            if os.path.isfile(os.path.join(parent, e)) and e.endswith(".md")
-        ]
-    # Single-file resources — just check existence.
-    src = os.path.join(ADD_TEMPLATE_DIR, src_pattern)
-    if os.path.isfile(src):
-        return [os.path.splitext(os.path.basename(src_pattern))[0]]
-    return []
-
-
-def _print_add_list(resource_type):
-    """Print a formatted table of available resources."""
-    items = _list_available(resource_type)
-    if not items:
-        print(f"  No {resource_type} templates available.")
-        return
-    print(f"\n  {_c('Available ' + resource_type + ' resources:', _BOLD)}")
-    for item in items:
-        # Try to read a description from YAML frontmatter or first heading.
-        handler = _ADD_HANDLERS[resource_type]
-        src_pattern = handler["template_src"]
-        if handler["needs_name"]:
-            src_path = os.path.join(
-                ADD_TEMPLATE_DIR, src_pattern.replace("{name}", item)
-            )
-        else:
-            src_path = os.path.join(ADD_TEMPLATE_DIR, src_pattern)
-        if handler["is_dir"]:
-            # Look for SKILL.md inside the directory.
-            src_path = os.path.join(src_path, "SKILL.md")
-        desc = ""
-        if os.path.isfile(src_path):
-            try:
-                with open(src_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith("description:"):
-                            desc = line.split(":", 1)[1].strip()
-                            break
-                        if line.startswith("# ") and not desc:
-                            desc = line[2:].strip()
-            except OSError:
-                pass
-        if desc:
-            print(f"    {_c(item, _CYAN):30s} {desc}")
-        else:
-            print(f"    {_c(item, _CYAN)}")
-
-
-def _append_agents_section(dest, section_heading, reference_line):
-    """Append a reference line under a section in AGENTS.md, creating it if needed."""
-    agents_path = os.path.join(dest, "AGENTS.md")
-    if not os.path.isfile(agents_path):
-        print(
-            _c("Warning:", _YELLOW, sys.stderr)
-            + " AGENTS.md not found. Run 'agentinit init' first, or create it manually.",
-            file=sys.stderr,
-        )
-        return
-
-    with open(agents_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    # Don't duplicate the reference.
-    if reference_line.strip() in content:
-        return
-
-    if section_heading in content:
-        # Append under existing section.
-        content = content.replace(
-            section_heading,
-            f"{section_heading}\n\n{reference_line}",
-        )
-    else:
-        # Append new section at the end.
-        content = content.rstrip("\n") + f"\n\n{section_heading}\n\n{reference_line}\n"
-
-    with open(agents_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
+    _cmd_status_impl(
+        args,
+        managed_files=MANAGED_FILES,
+        minimal_managed_files=MINIMAL_MANAGED_FILES,
+        resolves_within=_resolves_within,
+    )
 
 
 def cmd_add(args):
     """Add a modular agentic resource to the current project."""
-    resource_type = args.type
-    handler = _ADD_HANDLERS[resource_type]
-    dest = os.path.abspath(".")
+    _cmd_add_impl(args, template_dir=TEMPLATE_DIR, resolves_within=_resolves_within)
 
-    # --list: show available resources and exit.
-    if args.list:
-        _print_add_list(resource_type)
-        return
 
-    # Validate name requirement.
-    name = args.name
-    available = _list_available(resource_type) if handler["needs_name"] else []
-    if resource_type == "soul" and not name:
-        print(
-            _c("Error:", _RED, sys.stderr)
-            + " 'soul' requires a persona name. Example: agentinit add soul \"YourAgentName\"",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    if handler["needs_name"] and not name:
-        if available:
-            print(
-                _c("Error:", _RED, sys.stderr)
-                + f" '{resource_type}' requires a name. Available: {', '.join(available)}",
-                file=sys.stderr,
-            )
-        else:
-            print(
-                _c("Error:", _RED, sys.stderr) + f" '{resource_type}' requires a name.",
-                file=sys.stderr,
-            )
-        sys.exit(1)
-    if handler["needs_name"] and name not in available:
-        print(
-            _c("Error:", _RED, sys.stderr)
-            + f" unknown {resource_type}: '{name}'."
-            + (f" Available: {', '.join(available)}" if available else ""),
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # Resolve source path.
-    if handler["needs_name"]:
-        src = os.path.join(
-            ADD_TEMPLATE_DIR, handler["template_src"].replace("{name}", name)
-        )
-    else:
-        src = os.path.join(ADD_TEMPLATE_DIR, handler["template_src"])
-    add_template_root = os.path.realpath(ADD_TEMPLATE_DIR)
-    if not _resolves_within(add_template_root, src):
-        print(
-            _c("Error:", _RED, sys.stderr)
-            + f" template path escapes add template directory: {name!r}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    if handler["is_dir"]:
-        if not os.path.isdir(src):
-            print(
-                _c("Error:", _RED, sys.stderr)
-                + f" unknown {resource_type}: '{name}'."
-                + (f" Available: {', '.join(available)}" if available else ""),
-                file=sys.stderr,
-            )
-            sys.exit(1)
-    else:
-        if not os.path.isfile(src):
-            print(
-                _c("Error:", _RED, sys.stderr)
-                + f" unknown {resource_type}: '{name}'."
-                + (f" Available: {', '.join(available)}" if available else ""),
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-    # Resolve destination path.
-    if handler["needs_name"]:
-        dst = os.path.join(dest, handler["dest_pattern"].replace("{name}", name))
-    else:
-        dst = os.path.join(dest, handler["dest_pattern"])
-
-    # For skills, fall back to .claude/skills/ if .agents/ doesn't exist.
-    if resource_type == "skill":
-        alt = handler.get("dest_pattern_alt")
-        alt_dst = os.path.join(dest, alt.replace("{name}", name)) if alt else None
-        if not os.path.isdir(os.path.join(dest, ".agents")):
-            dst = alt_dst or dst
-        # Check both locations for existence.
-        elif alt_dst and os.path.exists(alt_dst) and not os.path.exists(dst):
-            dst = alt_dst
-    dest_real = os.path.realpath(dest)
-    if not _resolves_within(dest_real, os.path.dirname(dst)) or not _resolves_within(
-        dest_real, dst
-    ):
-        print(
-            _c("Error:", _RED, sys.stderr)
-            + f" destination path escapes project root: {os.path.relpath(dst, dest)}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    if os.path.lexists(dst) and os.path.islink(dst):
-        print(
-            _c("Warning:", _YELLOW, sys.stderr)
-            + f" destination is a symlink, skipping: {os.path.relpath(dst, dest)}",
-            file=sys.stderr,
-        )
-        return
-
-    # Check if target already exists.
-    if os.path.exists(dst) and not args.force:
-        print(
-            _c("Warning:", _YELLOW, sys.stderr)
-            + f" {os.path.relpath(dst, dest)} already exists. Use --force to overwrite.",
-            file=sys.stderr,
-        )
-        return
-
-    # Copy.
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    if os.path.exists(dst) and args.force:
-        try:
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            else:
-                os.remove(dst)
-        except OSError as e:
-            print(
-                _c("Error:", _RED, sys.stderr)
-                + f" failed to overwrite existing path: {os.path.relpath(dst, dest)} ({e})",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-    if handler["is_dir"]:
-        shutil.copytree(src, dst)
-    else:
-        shutil.copy2(src, dst)
-
-    # Replace {{NAME}} placeholder in soul template.
-    if resource_type == "soul":
-        with open(dst, "r", encoding="utf-8") as f:
-            content = f.read()
-        content = content.replace("{{NAME}}", name)
-        with open(dst, "w", encoding="utf-8", newline="\n") as f:
-            f.write(content)
-
-    rel_dst = os.path.relpath(dst, dest)
-    print(f"{_c('Added', _GREEN + _BOLD)} {resource_type}: {rel_dst}")
-
-    # Append reference in AGENTS.md if applicable.
-    if handler["agents_section"]:
-        reference = f"- `{rel_dst}`"
-        _append_agents_section(dest, handler["agents_section"], reference)
-        print(f"  Updated AGENTS.md ({handler['agents_section']})")
+def cmd_sync(args):
+    """Sync vendor router files from AGENTS.md-oriented templates."""
+    _cmd_sync_impl(args, template_dir=TEMPLATE_DIR, resolves_within=_resolves_within)
 
 
 def cmd_lint(args):
@@ -2117,218 +838,48 @@ def cmd_lint(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(
-        prog="agentinit",
-        description="Scaffold agent context files into a project.",
-    )
-    try:
-        _version = importlib.metadata.version("agentinit")
-    except importlib.metadata.PackageNotFoundError:
-        _version = "dev"
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=_version,
-    )
-    sub = parser.add_subparsers(dest="command")
+    """Build the CLI argument parser."""
+    return _build_parser_impl(SKELETON_CHOICES, list(ADD_RESOURCE_TYPES))
 
-    # agentinit new <name>
-    p_new = sub.add_parser("new", help="Create a new project with agent context files.")
-    p_new.add_argument("name", help="Project directory name.")
-    p_new.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard."
-    )
-    p_new.add_argument("--dir", help="Parent directory (default: current directory).")
-    p_new.add_argument(
-        "--force",
-        action="store_true",
-        help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.",
-    )
-    p_new.add_argument(
-        "--minimal",
-        action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
-    )
-    p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_new.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_new.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_new.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_new.add_argument(
-        "--skeleton",
-        choices=SKELETON_CHOICES,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
 
-    # agentinit init
-    p_init = sub.add_parser(
-        "init", help="Add missing agent context files to the current directory."
-    )
-    p_init.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip interactive wizard and overwrite existing files (alias for --force).",
-    )
-    p_init.add_argument(
-        "--force",
-        action="store_true",
-        help="Overwrite existing agentinit files (including TODO/DECISIONS).",
-    )
-    p_init.add_argument(
-        "--minimal",
-        action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
-    )
-    p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_init.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_init.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_init.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_init.add_argument(
-        "--skeleton",
-        choices=SKELETON_CHOICES,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
+def _maybe_enable_prompt(args):
+    """Enable interactive prompt mode for scaffold commands when appropriate."""
+    if args.command not in ("new", "init", "minimal"):
+        return
+    has_prefills = bool(getattr(args, "purpose", None))
+    if getattr(args, "yes", False):
+        args.prompt = False
+    elif not args.prompt and not has_prefills and sys.stdin.isatty():
+        args.prompt = True
 
-    # agentinit minimal  (shortcut for init --minimal)
-    p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
-    p_minimal.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip interactive wizard and overwrite existing files (alias for --force).",
-    )
-    p_minimal.add_argument(
-        "--force", action="store_true", help="Overwrite existing agentinit files."
-    )
-    p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_minimal.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_minimal.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_minimal.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_minimal.add_argument(
-        "--skeleton",
-        choices=SKELETON_CHOICES,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
 
-    # agentinit remove
-    p_remove = sub.add_parser(
-        "remove", help="Remove agentinit-managed files from the current directory."
-    )
-    p_remove.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print actions only, do not change anything.",
-    )
-    p_remove.add_argument(
-        "--archive",
-        action="store_true",
-        help="Move files to .agentinit-archive/ instead of deleting.",
-    )
-    p_remove.add_argument(
-        "--force", action="store_true", help="Skip confirmation prompt."
-    )
+def _dispatch_command(args, parser):
+    """Dispatch parsed args to the selected command handler."""
+    handlers = {
+        "new": cmd_new,
+        "init": cmd_init,
+        "remove": cmd_remove,
+        "status": cmd_status,
+        "add": cmd_add,
+        "lint": cmd_lint,
+        "sync": cmd_sync,
+    }
 
-    # agentinit status
-    p_status = sub.add_parser(
-        "status",
-        help="Show which agent context files are present, missing, or need updates.",
-    )
-    p_status.add_argument(
-        "--check",
-        action="store_true",
-        help="Exit with code 1 if files are missing or incomplete. Useful for CI.",
-    )
-    p_status.add_argument(
-        "--minimal", action="store_true", help="Check only the minimal core files."
-    )
+    if args.command == "minimal":
+        args.minimal = True
+        cmd_init(args)
+        return
+    if args.command in ("refresh-llms", "refresh"):
+        dest = args.root or os.getcwd()
+        elapsed = refresh_llms_txt(dest)
+        print(f"Regenerated llms.txt in {elapsed:.3f}s")
+        return
 
-    # agentinit add
-    p_add = sub.add_parser("add", help="Add modular agentic resources.")
-    p_add.add_argument(
-        "type",
-        choices=sorted(_ADD_HANDLERS.keys()),
-        help="Resource type to add.",
-    )
-    p_add.add_argument("name", nargs="?", default=None, help="Resource name.")
-    p_add.add_argument(
-        "--list", action="store_true", help="List available resources of this type."
-    )
-    p_add.add_argument(
-        "--force", action="store_true", help="Overwrite if the resource already exists."
-    )
-
-    # agentinit lint
-    p_lint = sub.add_parser(
-        "lint",
-        help="Run contextlint checks on agent context files.",
-    )
-    p_lint.add_argument(
-        "--config",
-        metavar="PATH",
-        default=None,
-        help="Path to .contextlintrc.json config file.",
-    )
-    p_lint.add_argument(
-        "--format",
-        choices=["text", "json"],
-        default="text",
-        help="Output format (default: text).",
-    )
-    p_lint.add_argument(
-        "--no-dup",
-        action="store_true",
-        default=False,
-        help="Disable duplicate-block detection.",
-    )
-    p_lint.add_argument(
-        "--root",
-        default=None,
-        help="Repository root to lint (default: current directory).",
-    )
-
-    # agentinit refresh-llms
-    p_refresh = sub.add_parser(
-        "refresh-llms",
-        aliases=["refresh"],
-        help="Regenerate llms.txt from project files (fast, existing files only).",
-    )
-    p_refresh.add_argument(
-        "--root",
-        default=None,
-        help="Project root (default: current directory).",
-    )
-
-    return parser
+    handler = handlers.get(args.command)
+    if handler is None:
+        parser.print_help()
+        sys.exit(1)
+    handler(args)
 
 
 def main():
@@ -2339,36 +890,8 @@ def main():
         parser.print_help()
         return
 
-    # Auto-enable interactive wizard on TTY unless --yes or prefill flags were passed.
-    if args.command in ("new", "init", "minimal"):
-        has_prefills = bool(getattr(args, "purpose", None))
-        if getattr(args, "yes", False):
-            args.prompt = False
-        elif not args.prompt and not has_prefills and sys.stdin.isatty():
-            args.prompt = True
-
-    if args.command == "new":
-        cmd_new(args)
-    elif args.command == "init":
-        cmd_init(args)
-    elif args.command == "minimal":
-        args.minimal = True
-        cmd_init(args)
-    elif args.command == "remove":
-        cmd_remove(args)
-    elif args.command == "status":
-        cmd_status(args)
-    elif args.command == "add":
-        cmd_add(args)
-    elif args.command == "lint":
-        cmd_lint(args)
-    elif args.command in ("refresh-llms", "refresh"):
-        dest = args.root or os.getcwd()
-        elapsed = refresh_llms_txt(dest)
-        print(f"Regenerated llms.txt in {elapsed:.3f}s")
-    else:
-        parser.print_help()
-        sys.exit(1)
+    _maybe_enable_prompt(args)
+    _dispatch_command(args, parser)
 
 
 if __name__ == "__main__":
