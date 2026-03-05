@@ -480,6 +480,27 @@ class TestCmdSync:
         assert "Profile: minimal (auto-detected)" in out
         assert "GEMINI.md" not in out
 
+    def test_sync_full_project_note_with_minimal_phrase_stays_full(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text(
+            agents.read_text(encoding="utf-8")
+            + "\nNote: string (minimal profile) for docs example.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "GEMINI.md").unlink()
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_sync(make_sync_args(check=True))
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "Profile: minimal" not in out
+        assert "GEMINI.md (missing)" in out
+
     def test_sync_updates_drifted_router_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
