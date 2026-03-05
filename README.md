@@ -57,11 +57,9 @@ agentinit add mcp github
 agentinit add security
 
 # 4) Validate quality gates
-agentinit status
-agentinit lint
-
-# 5) Keep router files in sync and enforce in CI
+agentinit status --check
 agentinit sync --check
+agentinit lint
 ```
 
 ### Command Reference
@@ -104,6 +102,7 @@ If your agent cannot find context files:
 - track files in git (`git add AGENTS.md CLAUDE.md GEMINI.md llms.txt docs/`)
 - verify ignored files (`git status --ignored`)
 - regenerate derived files (`agentinit refresh-llms` and `agentinit sync`)
+- replace managed symlinks with regular files inside the repo; unsafe managed paths are skipped by design
 
 ## Documentation 📚
 
@@ -112,14 +111,17 @@ Wiki (full usage and examples):
 - [Wiki Home](https://github.com/Lucenx9/agentinit/wiki)
 - [Quick Start](https://github.com/Lucenx9/agentinit/wiki/Quick-Start)
 - [Commands](https://github.com/Lucenx9/agentinit/wiki/Commands)
+- [Workflows](https://github.com/Lucenx9/agentinit/wiki/Workflows)
 - [Troubleshooting](https://github.com/Lucenx9/agentinit/wiki/Troubleshooting)
 - [FAQ](https://github.com/Lucenx9/agentinit/wiki/FAQ)
+- [Contributing to the Wiki](https://github.com/Lucenx9/agentinit/wiki/Contributing-to-the-Wiki)
 
 ## Development 🧪
 
 ```sh
 pip install -e . --group dev
 python3 -m ruff check agentinit tests cli
+python3 -m ruff format --check agentinit tests cli
 python3 -m pytest tests/ -v
 ```
 
