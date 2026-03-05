@@ -2,7 +2,6 @@
 
 import os
 import sqlite3
-from typing import List
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -37,8 +36,8 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
-@app.get("/todos", response_model=List[Todo])
-def list_todos() -> List[Todo]:
+@app.get("/todos", response_model=list[Todo])
+def list_todos() -> list[Todo]:
     with _get_conn() as conn:
         rows = conn.execute("SELECT id, title FROM todos ORDER BY id ASC").fetchall()
     return [Todo(id=row["id"], title=row["title"]) for row in rows]

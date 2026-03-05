@@ -1092,6 +1092,20 @@ class TestCmdStatus:
         out = capsys.readouterr().out
         assert "(201 lines >= 200)" in out
 
+    def test_contextlintrc_above_300_is_warning_only(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        config = tmp_path / ".contextlintrc.json"
+        config.write_text("line\n" * 301, encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert ".contextlintrc.json (301 lines >= 200)" in out
+        assert "too large" not in out
+
     def test_hard_line_budget(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.6
+
+- Align `agentinit status --check` line-budget hard failures with `contextlint` semantics:
+  - treat `.contextlintrc.json` as warning-only when oversized (no hard fail);
+  - keep hard failures focused on always-hot router/rules files.
+- Add regression coverage to ensure oversized `.contextlintrc.json` does not fail `status --check`.
+- Modernize FastAPI skeleton typing for Python `>=3.12`:
+  - replace deprecated `typing.List` usage with built-in `list[...]`.
+
 ## 0.3.5
 
 - Add optional purpose translation flow:

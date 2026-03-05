@@ -1614,7 +1614,10 @@ def cmd_status(args):
                 lines = content.splitlines()
                 line_count = len(lines)
                 file_sizes.append((rel, line_count))
-                is_always_loaded = not rel.startswith("docs/") and rel != ".gitignore"
+                is_always_loaded = not rel.startswith("docs/") and rel not in {
+                    ".gitignore",
+                    ".contextlintrc.json",
+                }
 
                 status_symbol = _c("+", _GREEN)
                 msgs = []
