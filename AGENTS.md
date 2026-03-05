@@ -7,7 +7,7 @@ Commands:
 
 - Setup: `pip install -e . --group dev`
 - Test: `python3 -m pytest tests/ -v`
-- Lint/Format: `python3 -m ruff check agentinit tests cli` + markdownlint (CI)
+- Lint/Format: `python3 -m ruff check agentinit tests cli && python3 -m ruff format --check agentinit tests cli` + markdownlint (CI)
 - Run: `agentinit --help`
 
 Rules:

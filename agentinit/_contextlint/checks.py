@@ -8,6 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -71,6 +72,73 @@ def _to_int_or_default(value: object, default: int) -> int:
         return default
 
 
+def _find_config_path(root: Path, config_path: Path | None) -> Path | None:
+    """Return explicit config path or first existing default config path."""
+    if config_path is not None:
+        return config_path if config_path.is_file() else None
+    for name in _CONFIG_NAMES:
+        candidate = root / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _load_config_data(path: Path | None) -> dict[str, object] | None:
+    """Read and parse config JSON as a dict."""
+    if path is None:
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _apply_nested_config(cfg: Config, data: dict[str, object]) -> None:
+    """Apply nested config format sections to *cfg*."""
+    lb = data.get("line_budget", {})
+    if isinstance(lb, dict):
+        cfg.default_warn = _to_int_or_default(lb.get("default_warn"), SOFT_WARN_LINES)
+        cfg.default_error = _to_int_or_default(lb.get("default_error"), HARD_FAIL_LINES)
+        cfg.router_warn_lines = _to_int_or_default(
+            lb.get("router_warn"), ROUTER_WARN_LINES
+        )
+        per_file = lb.get("per_file", {})
+        if isinstance(per_file, dict):
+            parsed_per_file: dict[str, int] = {}
+            for k, v in per_file.items():
+                parsed = _to_int_or_default(v, -1)
+                if parsed >= 0:
+                    parsed_per_file[k] = parsed
+            cfg.per_file_error = parsed_per_file
+
+    ig = data.get("ignore", {})
+    if isinstance(ig, dict):
+        cfg.ignore_paths = set(ig.get("paths", []))
+        cfg.ignore_refs = set(ig.get("refs", []))
+        for f in ig.get("files", []):  # legacy alias
+            cfg.ignore_paths.add(f)
+
+    disc = data.get("discovery", {})
+    if isinstance(disc, dict):
+        cfg.extra_globs = list(disc.get("extra_globs", []))
+        cfg.disable_default_discovery = bool(disc.get("disable_defaults", False))
+
+
+def _apply_legacy_config(cfg: Config, data: dict[str, object]) -> None:
+    """Apply flat legacy config format to *cfg*."""
+    cfg.default_warn = _to_int_or_default(data.get("soft_warn_lines"), SOFT_WARN_LINES)
+    cfg.default_error = _to_int_or_default(data.get("hard_fail_lines"), HARD_FAIL_LINES)
+    cfg.router_warn_lines = _to_int_or_default(
+        data.get("router_warn_lines"), ROUTER_WARN_LINES
+    )
+    legacy_ignore = data.get("ignore", [])
+    if isinstance(legacy_ignore, list):
+        cfg.ignore_paths = set(legacy_ignore)
+
+
 @dataclass
 class Config:
     # Line budget
@@ -88,70 +156,17 @@ class Config:
 
 def load_config(root: Path, config_path: Path | None = None) -> Config:
     """Load config from *.contextlintrc.json* (or legacy *.contextlintrc*)."""
-    if config_path is None:
-        for name in _CONFIG_NAMES:
-            candidate = root / name
-            if candidate.is_file():
-                config_path = candidate
-                break
-    if config_path is None or not config_path.is_file():
-        return Config()
-    try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return Config()
-    if not isinstance(data, dict):
+    path = _find_config_path(root, config_path)
+    data = _load_config_data(path)
+    if data is None:
         return Config()
 
     cfg = Config()
-
-    # Detect format: nested (has known top-level sections) vs. legacy flat.
     is_nested = any(k in data for k in ("line_budget", "ignore", "discovery"))
-
     if is_nested:
-        lb = data.get("line_budget", {})
-        if isinstance(lb, dict):
-            cfg.default_warn = _to_int_or_default(
-                lb.get("default_warn"), SOFT_WARN_LINES
-            )
-            cfg.default_error = _to_int_or_default(
-                lb.get("default_error"), HARD_FAIL_LINES
-            )
-            cfg.router_warn_lines = _to_int_or_default(
-                lb.get("router_warn"), ROUTER_WARN_LINES
-            )
-            per_file = lb.get("per_file", {})
-            if isinstance(per_file, dict):
-                parsed_per_file: dict[str, int] = {}
-                for k, v in per_file.items():
-                    parsed = _to_int_or_default(v, -1)
-                    if parsed >= 0:
-                        parsed_per_file[k] = parsed
-                cfg.per_file_error = parsed_per_file
-        ig = data.get("ignore", {})
-        if isinstance(ig, dict):
-            cfg.ignore_paths = set(ig.get("paths", []))
-            cfg.ignore_refs = set(ig.get("refs", []))
-            for f in ig.get("files", []):  # legacy alias
-                cfg.ignore_paths.add(f)
-        disc = data.get("discovery", {})
-        if isinstance(disc, dict):
-            cfg.extra_globs = list(disc.get("extra_globs", []))
-            cfg.disable_default_discovery = bool(disc.get("disable_defaults", False))
+        _apply_nested_config(cfg, data)
     else:
-        # Legacy flat format: soft_warn_lines / hard_fail_lines / ignore (list).
-        cfg.default_warn = _to_int_or_default(
-            data.get("soft_warn_lines"), SOFT_WARN_LINES
-        )
-        cfg.default_error = _to_int_or_default(
-            data.get("hard_fail_lines"), HARD_FAIL_LINES
-        )
-        cfg.router_warn_lines = _to_int_or_default(
-            data.get("router_warn_lines"), ROUTER_WARN_LINES
-        )
-        legacy_ignore = data.get("ignore", [])
-        if isinstance(legacy_ignore, list):
-            cfg.ignore_paths = set(legacy_ignore)
+        _apply_legacy_config(cfg, data)
 
     return cfg
 
@@ -209,6 +224,43 @@ def _is_ignored(rel: str, ignore_paths: set[str]) -> bool:
     return any(fnmatch.fnmatch(rel_posix, pat) for pat in ignore_paths)
 
 
+def _collect_default_discovery(root: Path, add: Callable[[Path, bool], None]) -> None:
+    """Collect built-in always-hot files and docs markdown files."""
+    for name in ALWAYS_HOT_FILES:
+        p = root / name
+        if p.is_file():
+            add(p, hot=True)
+
+    for pattern in ALWAYS_HOT_GLOBS:
+        for f in _iter_glob(root, pattern):
+            add(f, hot=True)
+
+    docs_dir = root / "docs"
+    if docs_dir.is_dir():
+        for f in _iter_glob(root, "docs/**/*.md"):
+            add(f, hot=False)
+
+
+def _collect_extra_discovery(
+    root: Path, patterns: list[str], add: Callable[[Path, bool], None]
+) -> None:
+    """Collect files discovered via user-provided glob patterns."""
+    for pattern in patterns:
+        for f in _iter_glob(root, pattern):
+            add(f, hot=False)
+
+
+def _apply_ignore_filter(
+    root: Path, found: list[Path], hot_rels: set[str], ignore_paths: set[str]
+) -> tuple[list[Path], set[str]]:
+    """Filter discovered files and hot paths by ignore patterns."""
+    if not ignore_paths:
+        return found, hot_rels
+    filtered_files = [f for f in found if not _is_ignored(_rel(f, root), ignore_paths)]
+    filtered_hot = {r for r in hot_rels if not _is_ignored(r, ignore_paths)}
+    return filtered_files, filtered_hot
+
+
 def _discover_context_files(root: Path, config: Config) -> tuple[list[Path], set[str]]:
     """Return *(files, hot_rels)* — both sorted/deterministic.
 
@@ -230,32 +282,12 @@ def _discover_context_files(root: Path, config: Config) -> tuple[list[Path], set
                 pass
 
     if not config.disable_default_discovery:
-        for name in ALWAYS_HOT_FILES:
-            p = root / name
-            if p.is_file():
-                _add(p, hot=True)
+        _collect_default_discovery(root, _add)
 
-        for pattern in ALWAYS_HOT_GLOBS:
-            for f in _iter_glob(root, pattern):
-                _add(f, hot=True)
-
-        docs_dir = root / "docs"
-        if docs_dir.is_dir():
-            for f in _iter_glob(root, "docs/**/*.md"):
-                _add(f, hot=False)
-
-    for pattern in config.extra_globs:
-        for f in _iter_glob(root, pattern):
-            _add(f, hot=False)
+    _collect_extra_discovery(root, config.extra_globs, _add)
 
     found.sort(key=lambda p: _rel(p, root))
-
-    if config.ignore_paths:
-        found = [
-            f for f in found if not _is_ignored(_rel(f, root), config.ignore_paths)
-        ]
-        hot_rels = {r for r in hot_rels if not _is_ignored(r, config.ignore_paths)}
-
+    found, hot_rels = _apply_ignore_filter(root, found, hot_rels, config.ignore_paths)
     return found, hot_rels
 
 
@@ -345,6 +377,52 @@ def _looks_like_path(s: str) -> bool:
     return bool(re.search(r"\.\w{1,6}$", s))
 
 
+def _extract_refs_from_line(line: str) -> list[str]:
+    """Extract markdown links, @imports, and standalone path candidates."""
+    refs: list[str] = []
+
+    refs.extend(m.group(1) for m in _MD_LINK_RE.finditer(line))
+
+    for m in _AT_IMPORT_RE.finditer(line):
+        token = m.group(1)
+        if _looks_like_path(token):
+            refs.append(token)
+
+    sm = _STANDALONE_PATH_RE.match(line)
+    if sm:
+        candidate = sm.group(1)
+        if _looks_like_path(candidate):
+            refs.append(candidate)
+
+    return refs
+
+
+def _normalize_ref(ref: str) -> str:
+    """Normalize raw reference by stripping in-line anchors."""
+    return ref.split("#", 1)[0]
+
+
+def _should_skip_ref(ref: str, seen: set[str], config: Config) -> bool:
+    """Return True when *ref* should not be validated."""
+    if not ref:
+        return True
+    if _SKIP_RE.match(ref):
+        return True
+    if ref in config.ignore_refs or Path(ref).name in config.ignore_refs:
+        return True
+    if ref in seen:
+        return True
+    return False
+
+
+def _resolve_ref_target(root: Path, fpath: Path, ref: str) -> Path:
+    """Resolve *ref* from file context, preserving repo-root semantics for /paths."""
+    ref_path = Path(ref)
+    if ref_path.is_absolute():
+        return (root / ref.lstrip("/\\")).resolve()
+    return (fpath.parent / ref).resolve()
+
+
 def _check_refs_in_file(
     root: Path, fpath: Path, rel_name: str, result: LintResult, config: Config
 ) -> None:
@@ -357,38 +435,13 @@ def _check_refs_in_file(
     seen: set[str] = set()
 
     for lineno, line in enumerate(raw, 1):
-        refs: list[str] = []
-
-        # [text](ref)
-        for m in _MD_LINK_RE.finditer(line):
-            refs.append(m.group(1))
-
-        # @path/to/file or @FILE.md (filtered by _looks_like_path to skip @username)
-        for m in _AT_IMPORT_RE.finditer(line):
-            token = m.group(1)
-            if _looks_like_path(token):
-                refs.append(token)
-
-        # Bare paths on their own line
-        sm = _STANDALONE_PATH_RE.match(line)
-        if sm:
-            candidate = sm.group(1)
-            if _looks_like_path(candidate):
-                refs.append(candidate)
-
-        for ref in refs:
-            ref = ref.split("#")[0]  # strip anchor
-            if not ref:
-                continue
-            if _SKIP_RE.match(ref):
-                continue
-            if ref in config.ignore_refs or Path(ref).name in config.ignore_refs:
-                continue
-            if ref in seen:
+        for raw_ref in _extract_refs_from_line(line):
+            ref = _normalize_ref(raw_ref)
+            if _should_skip_ref(ref, seen, config):
                 continue
             seen.add(ref)
 
-            target = (root / ref).resolve()
+            target = _resolve_ref_target(root, fpath, ref)
             try:
                 target.relative_to(root_resolved)
             except ValueError:
@@ -456,10 +509,11 @@ def _check_router_sanity(root: Path, result: LintResult, config: Config) -> None
 _DUP_MIN_LINES = 4
 
 
-def _check_duplicates(root: Path, files: list[Path], result: LintResult) -> None:
-    # rel → list of (start_lineno, fingerprint)
+def _build_duplicate_windows(
+    root: Path, files: list[Path]
+) -> dict[str, list[tuple[int, str]]]:
+    """Build per-file normalized windows used for duplicate detection."""
     file_windows: dict[str, list[tuple[int, str]]] = {}
-
     for fpath in files:
         rel = _rel(fpath, root)
         try:
@@ -467,7 +521,6 @@ def _check_duplicates(root: Path, files: list[Path], result: LintResult) -> None
         except OSError:
             continue
 
-        # Normalise: strip, drop blanks, track original 1-based lineno.
         norm: list[tuple[int, str]] = [
             (i, line.strip()) for i, line in enumerate(raw, 1) if line.strip()
         ]
@@ -480,8 +533,13 @@ def _check_duplicates(root: Path, files: list[Path], result: LintResult) -> None
             block = "\n".join(text for _, text in norm[i : i + _DUP_MIN_LINES])
             windows.append((start_lineno, block))
         file_windows[rel] = windows
+    return file_windows
 
-    # Inverted index: fingerprint → [(rel, first_lineno)]
+
+def _build_duplicate_index(
+    file_windows: dict[str, list[tuple[int, str]]],
+) -> dict[str, list[tuple[str, int]]]:
+    """Build fingerprint index from per-file windows."""
     fp_to_locs: dict[str, list[tuple[str, int]]] = {}
     for rel, windows in file_windows.items():
         emitted: set[str] = set()
@@ -489,9 +547,15 @@ def _check_duplicates(root: Path, files: list[Path], result: LintResult) -> None
             if fp not in emitted:
                 emitted.add(fp)
                 fp_to_locs.setdefault(fp, []).append((rel, lineno))
+    return fp_to_locs
+
+
+def _check_duplicates(root: Path, files: list[Path], result: LintResult) -> None:
+    file_windows = _build_duplicate_windows(root, files)
+    fp_to_locs = _build_duplicate_index(file_windows)
 
     reported: set[frozenset[str]] = set()
-    for fp, locs in sorted(fp_to_locs.items()):  # sort for determinism
+    for _, locs in sorted(fp_to_locs.items()):  # sort for determinism
         files_set = {rel for rel, _ in locs}
         if len(files_set) < 2:
             continue
