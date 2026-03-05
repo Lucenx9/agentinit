@@ -355,3 +355,16 @@ class TestRefreshLlms:
 
         assert elapsed < 1.0
         assert llms.splitlines()[1] == "> Python >=3.11 project."
+
+    def test_skips_symlink_destination(self, tmp_path, capsys):
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        cli.copy_template(str(tmp_path))
+        (tmp_path / "llms.txt").unlink()
+        (tmp_path / "llms.txt").symlink_to(outside / "llms.txt")
+
+        elapsed = cli.refresh_llms_txt(str(tmp_path))
+
+        assert elapsed is None
+        assert not (outside / "llms.txt").exists()
+        assert "managed path is a symlink" in capsys.readouterr().err
