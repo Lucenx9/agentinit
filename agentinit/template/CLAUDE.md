@@ -1,6 +1,6 @@
 # Claude Router
 
-**Token Discipline:** Keep this file short. Move details to `docs/`.
+**Token Discipline:** Keep this file short. Prefer `@...` imports over pasted policy text.
 
 @AGENTS.md
 @docs/PROJECT.md
@@ -12,10 +12,10 @@
 @.claude/rules/testing.md
 @.claude/rules/repo-map.md
 
-Treat `AGENTS.md` as the single source of truth for all mandatory rules (`MUST ALWAYS` / `MUST NEVER`).
+Treat `AGENTS.md` as the single source of truth for mandatory rules and use the imported docs as working memory.
 
-**Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` contain unfilled placeholders, fill them concisely (facts-only) before starting other work.
+**Startup:** If `docs/PROJECT.md` or `docs/CONVENTIONS.md` still contain placeholders, replace them with concise factual content before other work.
 
-**Maintenance:** If you introduce or change commands, conventions, or decisions, update the corresponding docs in the same PR. Update `docs/STATE.md` only if priorities/next steps changed.
+**Maintenance:** Keep doc updates in the same PR as code changes. Touch `docs/STATE.md` only when priorities or handoff notes changed.
 
 Do not duplicate policy text here. Use this file purely as an index to the deeper context in `docs/`.
