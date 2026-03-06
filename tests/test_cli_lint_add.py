@@ -1,4 +1,4 @@
-"""Tests for agentinit.cli."""
+"""Tests for lint, add, and contextlint integration."""
 
 import json
 import sys
@@ -7,6 +7,7 @@ import pytest
 
 import agentinit.cli as cli
 from tests.helpers import (
+    fill_tbd,
     make_add_args,
     make_init_args,
     make_lint_args,
@@ -15,18 +16,11 @@ from tests.helpers import (
 
 
 class TestCmdLint:
-    def _fill_tbd(self, root, files):
-        for rel in files:
-            path = root / rel
-            if path.is_file():
-                content = path.read_text(encoding="utf-8")
-                path.write_text(content.replace("TBD", "done"), encoding="utf-8")
-
     def test_lint_clean_project_exits_0(self, tmp_path, monkeypatch):
         """agentinit init → agentinit lint returns 0 on a clean project."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         # Rewrite AGENTS.md without broken refs
         (tmp_path / "AGENTS.md").write_text(
             "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
@@ -39,7 +33,7 @@ class TestCmdLint:
         """Inject broken ref in .claude/rules/, verify status --check exits 1."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         # Clean AGENTS.md of broken refs
         (tmp_path / "AGENTS.md").write_text(
             "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
@@ -60,7 +54,7 @@ class TestCmdLint:
         """agentinit lint --format json produces valid JSON with expected keys."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         (tmp_path / "AGENTS.md").write_text(
             "# Agents\n\nSee [project](docs/PROJECT.md).\n", encoding="utf-8"
         )

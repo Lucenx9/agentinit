@@ -23,9 +23,11 @@ def make_args(**kwargs):
 def make_init_args(**kwargs):
     defaults = {
         "force": False,
+        "yes": False,
         "minimal": False,
         "purpose": None,
         "prompt": False,
+        "detect": False,
         "translate_purpose": False,
         "skeleton": None,
     }
@@ -57,7 +59,25 @@ def make_add_args(**kwargs):
     return argparse.Namespace(**defaults)
 
 
-def make_sync_args(**kwargs):
-    defaults = {"check": False, "root": None, "minimal": False}
+def make_doctor_args(**kwargs):
+    defaults = {"minimal": False}
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
+
+
+def make_sync_args(**kwargs):
+    defaults = {"check": False, "diff": False, "root": None, "minimal": False}
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+def fill_tbd(root, files):
+    """Replace all TBD markers in the given managed files."""
+    from pathlib import Path
+
+    root = Path(root)
+    for rel in files:
+        path = root / rel
+        if path.is_file():
+            content = path.read_text(encoding="utf-8")
+            path.write_text(content.replace("TBD", "done"), encoding="utf-8")

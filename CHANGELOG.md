@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## [0.3.13] - 2026-03-06
+
+### Added
+
+- `agentinit doctor` command: runs all checks (missing files, TBD content, line budgets, sync drift, llms.txt freshness, contextlint) and prints actionable fix commands with a quick-fix summary.
+- `agentinit sync --diff`: show unified diffs for out-of-sync router files; works standalone or combined with `--check`.
+
+### Changed
+
+- Rewrite README with expanded documentation: installation, quick start, full/minimal modes, how-it-works diagram, CI integration, modular resources, and supported tools table.
+- Deduplicate test helpers: move shared `fill_tbd` to `tests/helpers.py`; add missing `detect`/`yes` defaults to `make_init_args`; add `make_doctor_args` and update `make_sync_args` with `diff` support.
+- Fix misleading test file docstrings (all previously said "Tests for agentinit.cli").
+- Add wiki documentation for architecture, commands, workflows, FAQ, troubleshooting, and contributing.
+
 ## [0.3.12] - 2026-03-06
 
 ### Changed

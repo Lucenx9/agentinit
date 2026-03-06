@@ -1,4 +1,4 @@
-"""Tests for agentinit.cli."""
+"""Tests for status, detect, and template packaging."""
 
 import json
 import os
@@ -8,6 +8,7 @@ import pytest
 
 import agentinit.cli as cli
 from tests.helpers import (
+    fill_tbd,
     make_args,
     make_init_args,
     make_status_args,
@@ -15,19 +16,11 @@ from tests.helpers import (
 
 
 class TestCmdStatus:
-    def _fill_tbd(self, root, files):
-        """Replace all TBD markers in the given managed files."""
-        for rel in files:
-            path = root / rel
-            if path.is_file():
-                content = path.read_text(encoding="utf-8")
-                path.write_text(content.replace("TBD", "done"), encoding="utf-8")
-
     def test_all_present_and_filled(self, tmp_path, monkeypatch, capsys):
         """When all files exist and none contain TBD, reports 'Ready'."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         cli.cmd_status(make_status_args())
         out = capsys.readouterr().out
         assert "Ready" in out
@@ -66,7 +59,7 @@ class TestCmdStatus:
         """--check should fail closed when contextlint cannot be loaded."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
 
         def _boom():
             raise RuntimeError("simulated contextlint failure")
@@ -83,7 +76,7 @@ class TestCmdStatus:
         """--check should exit with code 0 when everything is filled."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
         assert exc.value.code == 0
@@ -102,7 +95,7 @@ class TestCmdStatus:
         """--minimal only checks the minimal core files."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
-        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(minimal=True, check=True))
         assert exc.value.code == 0
@@ -115,7 +108,7 @@ class TestCmdStatus:
     ):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
-        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
         (tmp_path / "docs" / "GUIDE.md").write_text(
             "See [missing](missing.md)\n",
             encoding="utf-8",
@@ -135,7 +128,7 @@ class TestCmdStatus:
         """A scaffolded minimal project should not require repeating --minimal."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
-        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
 
         with pytest.raises(SystemExit) as exc:
             cli.cmd_status(make_status_args(check=True))
@@ -150,7 +143,7 @@ class TestCmdStatus:
         """Auto-detection should rely on scaffold markers, not just missing files."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args(minimal=True))
-        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
 
         agents = tmp_path / "AGENTS.md"
         llms = tmp_path / "llms.txt"
@@ -239,7 +232,7 @@ class TestCmdStatus:
     def test_soft_line_budget(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text("line\n" * 201, encoding="utf-8")
 
@@ -254,7 +247,7 @@ class TestCmdStatus:
     ):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         config = tmp_path / ".contextlintrc.json"
         config.write_text("line\n" * 301, encoding="utf-8")
 
@@ -268,7 +261,7 @@ class TestCmdStatus:
     def test_hard_line_budget(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text("line\n" * 301, encoding="utf-8")
 
@@ -282,7 +275,7 @@ class TestCmdStatus:
     def test_broken_reference(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text(
             'Here is a [link](docs/missing.md "Title") and `docs/also-missing.md`',
@@ -302,7 +295,7 @@ class TestCmdStatus:
         """Markdown link syntax must not be reported as a second broken ref."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text(
             "[broken](docs/nope.md)",
@@ -320,7 +313,7 @@ class TestCmdStatus:
         """Ensure .gitignore is not listed in Top offenders even when it has many lines."""
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
 
         (tmp_path / ".gitignore").write_text(
             "\n".join(f"line{i}" for i in range(50)), encoding="utf-8"
@@ -349,7 +342,7 @@ class TestCmdStatus:
     def test_valid_reference(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         agents.write_text(
             "Valid link: [project](docs/PROJECT.md) and [x](../secret.md)",
@@ -365,7 +358,7 @@ class TestCmdStatus:
     def test_outside_reference_ignored_no_crash(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
-        self._fill_tbd(tmp_path, cli.MANAGED_FILES)
+        fill_tbd(tmp_path, cli.MANAGED_FILES)
         agents = tmp_path / "AGENTS.md"
         # Test paths that resolve outside the root (should be ignored, not crash)
         agents.write_text("See `../secret.md` or `../../outside.txt`", encoding="utf-8")
