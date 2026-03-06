@@ -30,7 +30,7 @@ jobs:
 ### What each check does
 
 | Command | Catches |
-|---------|---------|
+| --- | --- |
 | `sync --check` | Router files that have drifted from their templates |
 | `status --check` | Missing files, unfilled placeholders, files over 300 lines, broken `@`-references |
 | `lint` | Broken refs, content bloat, duplicated blocks across files |

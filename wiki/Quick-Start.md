@@ -92,8 +92,8 @@ agentinit init --yes
 git add AGENTS.md CLAUDE.md GEMINI.md llms.txt docs/
 ```
 
-4. **Start your AI coding agent.** It will read `AGENTS.md` (or the vendor-specific router) automatically and follow your project rules.
+1. **Start your AI coding agent.** It will read `AGENTS.md` (or the vendor-specific router) automatically and follow your project rules.
 
 ## What was generated
 
-See the [Architecture](Architecture) page for a detailed explanation of every generated file, the router-first design, and how minimal vs full profiles differ.
+See the [Architecture](Architecture.md) page for a detailed explanation of every generated file, the router-first design, and how minimal vs full profiles differ.

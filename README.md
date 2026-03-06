@@ -121,7 +121,7 @@ The `docs/` directory holds detailed project context that agents load on demand.
 ### Scaffolding
 
 | Command | Description |
-|---------|-------------|
+| --- | --- |
 | `agentinit init` | Add missing context files to the current directory |
 | `agentinit init --minimal` | Generate only the minimal file set |
 | `agentinit minimal` | Shortcut for `init --minimal` |
@@ -131,7 +131,7 @@ The `docs/` directory holds detailed project context that agents load on demand.
 Common flags for `init`, `minimal`, and `new`:
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--detect` | Auto-detect stack and commands from `pyproject.toml`, `package.json`, `Cargo.toml`, or `go.mod` |
 | `--purpose "..."` | Set the project purpose non-interactively |
 | `--prompt` | Run the interactive setup wizard (default on TTY) |
@@ -142,7 +142,7 @@ Common flags for `init`, `minimal`, and `new`:
 ### Maintenance
 
 | Command | Description |
-|---------|-------------|
+| --- | --- |
 | `agentinit sync` | Regenerate vendor router files from templates |
 | `agentinit sync --check` | Exit 1 if routers have drifted (CI mode) |
 | `agentinit sync --diff` | Show unified diff for out-of-sync routers |
@@ -153,7 +153,7 @@ Common flags for `init`, `minimal`, and `new`:
 ### Validation
 
 | Command | Description |
-|---------|-------------|
+| --- | --- |
 | `agentinit status` | Show missing files, incomplete content, and line budget warnings |
 | `agentinit status --check` | Exit 1 if any issues found (CI mode) |
 | `agentinit lint` | Run contextlint checks (broken refs, bloat, duplication) |
@@ -204,7 +204,7 @@ For minimal-profile projects, `sync --check` and `status --check` auto-detect th
 ## Supported tools
 
 | Tool | Generated file | How it works |
-|------|---------------|--------------|
+| --- | --- | --- |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `CLAUDE.md` | Router that `@`-imports `AGENTS.md` and `docs/` files |
 | [Cursor](https://cursor.com) | `.cursor/rules/project.mdc` | Project-level rules pointing to `AGENTS.md` |
 | [GitHub Copilot](https://github.com/features/copilot) | `.github/copilot-instructions.md` | Repository-level instructions referencing `AGENTS.md` |

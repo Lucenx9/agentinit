@@ -58,4 +58,4 @@ If a tool reads a specific file (like `AGENTS.md` or `llms.txt`), it may already
 2. Register it in the sync logic
 3. Open a pull request
 
-See [Contributing](Contributing) for development setup.
+See [Contributing](Contributing.md) for development setup.

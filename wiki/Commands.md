@@ -13,7 +13,7 @@ agentinit init [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--minimal` | Generate only `AGENTS.md`, `CLAUDE.md`, `llms.txt`, `docs/PROJECT.md`, `docs/CONVENTIONS.md` |
 | `--detect` | Auto-detect stack and commands from manifest files (`pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`) |
 | `--purpose "..."` | Pre-fill the Purpose field in `AGENTS.md` and `docs/PROJECT.md` |
@@ -40,7 +40,7 @@ agentinit new <name> [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--dir <path>` | Parent directory for the new project (default: current directory) |
 
 All `init` flags (`--minimal`, `--detect`, `--purpose`, `--prompt`, `--skeleton`, `--force`, `--yes`) also apply.
@@ -54,7 +54,7 @@ agentinit remove [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--dry-run` | Print what would be deleted without changing anything |
 | `--archive` | Move files to `.agentinit-archive/<timestamp>/` instead of deleting |
 | `--force` | Skip the confirmation prompt |
@@ -70,7 +70,7 @@ agentinit sync [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--check` | Exit with code 1 if any router file is out of sync (CI mode) |
 | `--diff` | Show a unified diff for each out-of-sync file |
 | `--minimal` | Sync only the minimal router set (`CLAUDE.md` only) |
@@ -87,11 +87,12 @@ agentinit status [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--check` | Exit with code 1 if any issues are found (CI mode) |
 | `--minimal` | Check only the minimal file set |
 
 Status checks include:
+
 - Missing managed files
 - Files still containing `(not configured)` placeholders
 - Files exceeding the 300-line hard limit or 200-line warning threshold
@@ -107,7 +108,7 @@ agentinit doctor [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--minimal` | Check only the minimal file set |
 
 ## `refresh-llms`
@@ -119,6 +120,7 @@ agentinit refresh-llms [--root <path>]
 ```
 
 The generated `llms.txt` includes:
+
 - Project name (detected from `pyproject.toml`, `package.json`, or directory name)
 - Project summary (from `docs/PROJECT.md` Purpose field)
 - Key context files with relative links
@@ -134,7 +136,7 @@ agentinit lint [flags]
 ```
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--config <path>` | Path to `.contextlintrc.json` config file |
 | `--format text\|json` | Output format (default: `text`) |
 | `--no-dup` | Disable duplicate-block detection |
@@ -150,14 +152,14 @@ agentinit add <type> --list
 ```
 
 | Type | Available resources | Install location |
-|------|-------------------|-----------------|
+| --- | --- | --- |
 | `skill` | `code-reviewer`, `testing`, `frontend-reviewer` | `.agents/skills/<name>/` or `.claude/skills/<name>/` |
 | `mcp` | `github`, `postgres` | `.agents/mcp-<name>.md` |
 | `security` | *(no name needed)* | `.agents/security.md` |
 | `soul` | *(no name needed)* | `.agents/soul.md` |
 
 | Flag | Effect |
-|------|--------|
+| --- | --- |
 | `--list` | List available resources for the given type |
 | `--force` | Overwrite if the resource already exists |
 

@@ -55,6 +55,7 @@ agentinit doctor
 ```
 
 Common causes:
+
 - **Missing files** -- Run `agentinit init` to regenerate them
 - **Unfilled placeholders** -- Open `docs/PROJECT.md` and `docs/CONVENTIONS.md` and replace `(not configured)` with real values
 - **Files over 300 lines** -- Move detailed content to separate files in `docs/` and use `@`-imports
@@ -65,6 +66,7 @@ Common causes:
 agentinit skips managed file paths that resolve to symlinks pointing outside the project root. This is a security measure.
 
 If you see "skipped: symlink" warnings:
+
 - Replace the symlink with a regular file inside the repository
 - Or remove the symlink and let agentinit create the file
 
@@ -87,6 +89,7 @@ pip install agentinit
 ## `--detect` doesn't find my stack
 
 `--detect` reads specific manifest files:
+
 - `pyproject.toml` (Python)
 - `package.json` (Node.js)
 - `Cargo.toml` (Rust)
@@ -97,6 +100,7 @@ If your manifest file isn't in the project root, `--detect` won't find it. In th
 ## llms.txt shows wrong project name
 
 `agentinit refresh-llms` detects the project name in this order:
+
 1. `name` field in `pyproject.toml`
 2. `name` field in `package.json`
 3. Purpose text in `docs/PROJECT.md`

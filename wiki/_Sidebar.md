@@ -1,19 +1,21 @@
-**Getting Started**
+# agentinit
+
+## Getting Started
 
 - [[Home]]
 - [[Quick Start]]
 
-**Reference**
+## Reference
 
 - [[Commands]]
 - [[Architecture]]
 - [[Workflows]]
 
-**Help**
+## Help
 
 - [[Troubleshooting]]
 - [[FAQ]]
 
-**Development**
+## Development
 
 - [[Contributing]]

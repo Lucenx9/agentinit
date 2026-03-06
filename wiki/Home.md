@@ -6,18 +6,18 @@ For installation and a quick overview, see the [README](https://github.com/Lucen
 
 ## Pages
 
-- **[Quick Start](Quick-Start)** -- Step-by-step setup for new and existing projects
-- **[Commands](Commands)** -- Full reference for every command and flag
-- **[Architecture](Architecture)** -- Router-first design, profiles, templates, and generated files
-- **[Workflows](Workflows)** -- CI integration, team workflows, and maintenance patterns
-- **[Troubleshooting](Troubleshooting)** -- Common problems and solutions
-- **[FAQ](FAQ)** -- Frequently asked questions
-- **[Contributing](Contributing)** -- Development setup, testing, and how to contribute
+- **[Quick Start](Quick-Start.md)** -- Step-by-step setup for new and existing projects
+- **[Commands](Commands.md)** -- Full reference for every command and flag
+- **[Architecture](Architecture.md)** -- Router-first design, profiles, templates, and generated files
+- **[Workflows](Workflows.md)** -- CI integration, team workflows, and maintenance patterns
+- **[Troubleshooting](Troubleshooting.md)** -- Common problems and solutions
+- **[FAQ](FAQ.md)** -- Frequently asked questions
+- **[Contributing](Contributing.md)** -- Development setup, testing, and how to contribute
 
 ## Key concepts
 
 | Concept | Meaning |
-|---------|---------|
+| --- | --- |
 | **Router file** | A thin vendor-specific file (e.g. `CLAUDE.md`) that imports `AGENTS.md` via `@`-references |
 | **Source of truth** | `AGENTS.md` -- the single file where you define project rules |
 | **Profile** | Either `minimal` (5 files) or `full` (16+ files); controls what gets generated |
