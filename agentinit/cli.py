@@ -8,6 +8,7 @@ import sys
 from argparse import Namespace
 
 from agentinit._add import ADD_RESOURCE_TYPES, cmd_add as _cmd_add_impl
+from agentinit._doctor import cmd_doctor as _cmd_doctor_impl
 from agentinit._parser import build_parser as _build_parser_impl
 from agentinit._project_detect import (
     _replace_commands_section as _replace_commands_section_impl,
@@ -276,6 +277,17 @@ def cmd_sync(args: Namespace) -> None:
     _cmd_sync_impl(args, template_dir=TEMPLATE_DIR, resolves_within=_resolves_within)
 
 
+def cmd_doctor(args: Namespace) -> None:
+    """Run all checks and show actionable fix commands."""
+    _cmd_doctor_impl(
+        args,
+        managed_files=MANAGED_FILES,
+        minimal_managed_files=MINIMAL_MANAGED_FILES,
+        template_dir=TEMPLATE_DIR,
+        resolves_within=_resolves_within,
+    )
+
+
 def cmd_lint(args: Namespace) -> None:
     """Run contextlint on the current directory (or --root)."""
     from agentinit.contextlint_adapter import run_contextlint
@@ -318,6 +330,7 @@ def _dispatch_command(args: Namespace, parser) -> None:
         "add": cmd_add,
         "lint": cmd_lint,
         "sync": cmd_sync,
+        "doctor": cmd_doctor,
     }
 
     if args.command == "minimal":

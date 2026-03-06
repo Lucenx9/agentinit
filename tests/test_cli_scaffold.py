@@ -1,4 +1,4 @@
-"""Tests for agentinit.cli."""
+"""Tests for scaffold operations (copy_template, write_todo, apply_updates, refresh_llms)."""
 
 import sys
 from pathlib import Path

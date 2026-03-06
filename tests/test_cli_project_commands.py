@@ -1,4 +1,4 @@
-"""Tests for agentinit.cli."""
+"""Tests for project commands (new, init, remove, sync, doctor, main)."""
 
 import sys
 from pathlib import Path
@@ -8,6 +8,7 @@ import pytest
 import agentinit.cli as cli
 from tests.helpers import (
     make_args,
+    make_doctor_args,
     make_init_args,
     make_remove_args,
     make_sync_args,
@@ -578,6 +579,54 @@ class TestCmdSync:
             cli.cmd_sync(make_sync_args())
         assert exc.value.code == 1
 
+    def test_sync_diff_shows_changes(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "CLAUDE.md").write_text("custom content\n", encoding="utf-8")
+
+        cli.cmd_sync(make_sync_args(diff=True))
+
+        out = capsys.readouterr().out
+        assert "--- a/CLAUDE.md" in out
+        assert "+++ b/CLAUDE.md" in out
+        assert "-custom content" in out
+
+    def test_sync_diff_no_output_when_in_sync(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+
+        cli.cmd_sync(make_sync_args(diff=True))
+
+        out = capsys.readouterr().out
+        assert "---" not in out
+        assert "+++" not in out
+
+    def test_sync_check_diff_shows_diff_and_exits_1(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "GEMINI.md").write_text("drift\n", encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_sync(make_sync_args(check=True, diff=True))
+        assert exc.value.code == 1
+
+        out = capsys.readouterr().out
+        assert "--- a/GEMINI.md" in out
+        assert "+++ b/GEMINI.md" in out
+
+    def test_sync_diff_missing_file_shows_dev_null(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / ".github" / "copilot-instructions.md").unlink()
+
+        cli.cmd_sync(make_sync_args(diff=True))
+
+        out = capsys.readouterr().out
+        assert "--- /dev/null" in out
+        assert "+++ b/.github/copilot-instructions.md" in out
+
     def test_sync_command_from_main_with_root(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         cli.cmd_init(make_init_args())
@@ -589,6 +638,76 @@ class TestCmdSync:
         with pytest.raises(SystemExit) as exc:
             cli.main()
         assert exc.value.code == 1
+
+
+class TestCmdDoctor:
+    def test_healthy_project_reports_no_issues(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="A real project"))
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        assert "All checks passed" in out
+
+    def test_reports_missing_files(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "GEMINI.md").unlink()
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        assert "GEMINI.md is missing" in out
+        assert "agentinit init" in out
+
+    def test_missing_router_not_reported_twice(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "CLAUDE.md").unlink()
+        capsys.readouterr()  # discard init output
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        # Should report "missing" once, not also "missing (router)" or "out of sync"
+        assert out.count("CLAUDE.md") == 1
+
+    def test_reports_sync_drift(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "CLAUDE.md").write_text("custom", encoding="utf-8")
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        assert "CLAUDE.md is out of sync" in out
+        assert "agentinit sync" in out
+
+    def test_reports_llms_unconfigured(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        assert "llms.txt has unconfigured fields" in out
+        assert "agentinit refresh-llms" in out
+
+    def test_quick_fixes_summary(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args())
+        (tmp_path / "CLAUDE.md").write_text("custom", encoding="utf-8")
+        cli.cmd_doctor(make_doctor_args())
+        out = capsys.readouterr().out
+        assert "Quick fixes:" in out
+
+    def test_doctor_via_main(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(purpose="A real project"))
+        monkeypatch.setattr(sys, "argv", ["agentinit", "doctor"])
+        cli.main()
+        out = capsys.readouterr().out
+        assert "agentinit doctor" in out
+
+    def test_doctor_minimal_mode(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        cli.cmd_doctor(make_doctor_args(minimal=True))
+        out = capsys.readouterr().out
+        assert "Profile: minimal" in out
+        # Should not complain about GEMINI.md (not in minimal profile)
+        assert "GEMINI.md" not in out
 
 
 class TestMain:

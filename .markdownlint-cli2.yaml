@@ -9,3 +9,8 @@ config:
   MD033: false
   # Allow bare URLs
   MD034: false
+
+# Exclude vendored / virtual-env Markdown
+ignores:
+  - ".venv/**"
+  - ".venv-ci/**"

@@ -149,6 +149,15 @@ def build_parser(skeleton_choices, add_resource_types):
         help="Repository root to lint (default: current directory).",
     )
 
+    # agentinit doctor
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="Run all checks and show actionable fix commands.",
+    )
+    p_doctor.add_argument(
+        "--minimal", action="store_true", help="Check only the minimal core files."
+    )
+
     # agentinit refresh-llms
     p_refresh = sub.add_parser(
         "refresh-llms",
@@ -170,6 +179,11 @@ def build_parser(skeleton_choices, add_resource_types):
         "--check",
         action="store_true",
         help="Exit with code 1 if router files are out of sync (CI mode).",
+    )
+    p_sync.add_argument(
+        "--diff",
+        action="store_true",
+        help="Show unified diff for each out-of-sync router file.",
     )
     p_sync.add_argument(
         "--minimal",
