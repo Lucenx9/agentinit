@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.3.12] - 2026-03-06
+
+### Changed
+
+- Add `pytest-cov` to dev dependencies and configure coverage reporting in CI.
+- Add `license-files` to `pyproject.toml` per PEP 639.
+- Deduplicate scaffold argument definitions in parser via shared helper (~90 lines removed).
+- Fix Italian comment in publish workflow.
+
 ## [0.3.11] - 2026-03-06
 
 ### Fixed
