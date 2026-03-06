@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.11
+
 - Fix CLI edge cases and contextlint filtering:
   - `agentinit new --force` now fails cleanly when the target already exists as a file;
   - `agentinit add mcp` / `add security` update the intended `AGENTS.md` section without matching headings inside fenced code blocks first;
