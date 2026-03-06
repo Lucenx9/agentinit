@@ -145,17 +145,46 @@ def _append_agents_section(
     if reference_line.strip() in content:
         return
 
-    if section_heading in content:
-        content = content.replace(
-            section_heading,
-            f"{section_heading}\n\n{reference_line}",
-            1,
-        )
+    lines = content.splitlines()
+    heading_index = _find_heading_line(lines, section_heading)
+    if heading_index is not None:
+        insert_at = heading_index + 1
+        insert_lines = ["", reference_line, ""]
+        if insert_at < len(lines) and not lines[insert_at].strip():
+            insert_at += 1
+            insert_lines = [reference_line, ""]
+        lines[insert_at:insert_at] = insert_lines
+        content = "\n".join(lines)
+        if content and not content.endswith("\n"):
+            content += "\n"
     else:
         content = content.rstrip("\n") + f"\n\n{section_heading}\n\n{reference_line}\n"
 
     with open(agents_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
+
+
+def _find_heading_line(lines: list[str], heading: str) -> int | None:
+    """Return the first markdown heading line index outside fenced code blocks."""
+    in_fence = False
+    fence_marker = ""
+
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif marker == fence_marker:
+                in_fence = False
+                fence_marker = ""
+            continue
+
+        if not in_fence and stripped == heading:
+            return index
+
+    return None
 
 
 def _validate_name(

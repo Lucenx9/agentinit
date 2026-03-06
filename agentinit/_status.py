@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
 from agentinit._profiles import looks_like_minimal_profile
@@ -211,12 +212,40 @@ def _check_single_file(
         )
 
 
-def _run_contextlint(dest: str, state: StatusState) -> None:
+def _filter_contextlint_result(lint_result, selected_paths: set[str] | None):
+    """Restrict contextlint output to the selected relative paths."""
+    if not selected_paths:
+        return lint_result
+
+    selected = {os.path.normpath(path).replace("\\", "/") for path in selected_paths}
+    lint_result.diagnostics = [
+        diag
+        for diag in lint_result.diagnostics
+        if os.path.normpath(diag.path).replace("\\", "/") in selected
+    ]
+    lint_result.file_sizes = {
+        path: size
+        for path, size in lint_result.file_sizes.items()
+        if os.path.normpath(path).replace("\\", "/") in selected
+    }
+    return lint_result
+
+
+def _run_contextlint(
+    dest: str, state: StatusState, *, selected_paths: set[str] | None = None
+) -> None:
     try:
         from agentinit.contextlint_adapter import get_checks_module
 
         checks_mod = get_checks_module()
-        lint_result = checks_mod.run_checks(root=__import__("pathlib").Path(dest))
+        try:
+            lint_result = checks_mod.run_checks(
+                root=Path(dest), selected_paths=selected_paths
+            )
+        except TypeError:
+            lint_result = checks_mod.run_checks(root=Path(dest))
+            lint_result = _filter_contextlint_result(lint_result, selected_paths)
+
         hard_diags = [d for d in lint_result.diagnostics if d.hard]
         soft_diags = [d for d in lint_result.diagnostics if not d.hard]
         if lint_result.diagnostics:
@@ -317,7 +346,12 @@ def cmd_status(
             minimal_ref_paths,
         )
 
-    _run_contextlint(dest, state)
+    selected_paths = None
+    if minimal_mode:
+        selected_paths = {
+            path for path in files_to_check if path.endswith((".md", ".mdc"))
+        }
+    _run_contextlint(dest, state, selected_paths=selected_paths)
     print()
 
     if _has_issues(state):
