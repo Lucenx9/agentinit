@@ -110,6 +110,7 @@ If your agent cannot find context files:
 
 Wiki (full usage and examples):
 
+- [Changelog](CHANGELOG.md)
 - [Wiki Home](https://github.com/Lucenx9/agentinit/wiki)
 - [Quick Start](https://github.com/Lucenx9/agentinit/wiki/Quick-Start)
 - [Commands](https://github.com/Lucenx9/agentinit/wiki/Commands)

@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+- Fix CLI edge cases and contextlint filtering:
+  - `agentinit new --force` now fails cleanly when the target already exists as a file;
+  - `agentinit add mcp` / `add security` update the intended `AGENTS.md` section without matching headings inside fenced code blocks first;
+  - `agentinit status --minimal --check` limits `contextlint` to the minimal core files instead of unrelated docs;
+  - `contextlint` validates list-like config fields instead of treating strings as per-character iterables.
+- Refactor scaffold internals without changing CLI behavior:
+  - extract scaffold and project-document update logic from `agentinit.cli` into focused internal modules;
+  - keep `agentinit.cli` as a thin entrypoint with stable wrappers for existing tests and console scripts.
+- Development docs now recommend creating a virtual environment before editable installs on systems that enforce PEP 668.
+
+## 0.3.10
+
+- Harden starter skeleton copying:
+  - skip transient cache directories, build artifacts, and `.egg-info` content when copying scaffold skeletons;
+  - add regression coverage for filtered skeleton files.
+
+## 0.3.9
+
+- Harden minimal-profile autodetection for `status --check` and `sync --check`.
+- Remove duplicate context warnings from shipped templates.
+
+## 0.3.8
+
+- Harden managed-file handling for scaffold and refresh flows.
+- Verify and refresh template guidance against primary sources.
+- Align root `CLAUDE.md` and `GEMINI.md` with the import-based router templates.
+- Add shared minimal-profile detection helpers used by status and sync checks.
+
+## 0.3.7
+
+- Refactor the CLI into focused internal modules while preserving the public command surface.
+- Split the test suite into targeted CLI/scaffold/status groups with shared helpers.
+- Strengthen CI gates and refresh the README/development guidance.
+
 ## 0.3.6
 
 - Align `agentinit status --check` line-budget hard failures with `contextlint` semantics:
