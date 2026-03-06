@@ -675,6 +675,14 @@ def cmd_new(args):
 
     dest = os.path.abspath(dest)
 
+    if os.path.exists(dest) and not os.path.isdir(dest):
+        print(
+            _c("Error:", _RED, sys.stderr)
+            + f" destination exists and is not a directory: {dest}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     if os.path.exists(dest) and not args.force:
         print(
             _c("Error:", _RED, sys.stderr) + f" directory already exists: {dest}",
@@ -695,7 +703,15 @@ def cmd_new(args):
     # Create dir and copy template
     created_dest = False
     if not os.path.exists(dest):
-        os.makedirs(dest)
+        try:
+            os.makedirs(dest)
+        except OSError as exc:
+            print(
+                _c("Error:", _RED, sys.stderr)
+                + f" failed to create project directory: {dest} ({exc})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         created_dest = True
     copied, skipped = copy_template(dest, force=args.force, minimal=args.minimal)
     if not copied and not skipped:

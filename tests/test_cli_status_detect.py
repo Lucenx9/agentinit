@@ -110,6 +110,25 @@ class TestCmdStatus:
         assert "Ready" in out
         assert "Broken reference" not in out
 
+    def test_minimal_status_ignores_non_core_contextlint_errors(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+        self._fill_tbd(tmp_path, cli.MINIMAL_MANAGED_FILES)
+        (tmp_path / "docs" / "GUIDE.md").write_text(
+            "See [missing](missing.md)\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(minimal=True, check=True))
+
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "docs/GUIDE.md" not in out
+        assert "Ready" in out
+
     def test_minimal_profile_auto_detected_without_flag(
         self, tmp_path, monkeypatch, capsys
     ):

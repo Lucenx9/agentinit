@@ -89,6 +89,32 @@ class TestCmdLint:
             cli.cmd_lint(make_lint_args())
         assert exc.value.code == 0
 
+    def test_lint_invalid_list_config_types_do_not_ignore_everything(
+        self, tmp_path, monkeypatch
+    ):
+        """String-valued list settings should be ignored, not expanded character-by-character."""
+        from agentinit._contextlint.checks import discover_context_files, load_config
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+        (tmp_path / "CLAUDE.md").write_text("See AGENTS.md\n", encoding="utf-8")
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "GUIDE.md").write_text("# Guide\n", encoding="utf-8")
+        (tmp_path / ".contextlintrc.json").write_text(
+            json.dumps({"ignore": {"paths": "docs/*.md"}}),
+            encoding="utf-8",
+        )
+
+        config = load_config(tmp_path)
+        discovered = discover_context_files(tmp_path, config)
+
+        assert sorted(config.ignore_paths) == []
+        assert sorted(str(path.relative_to(tmp_path)) for path in discovered) == [
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/GUIDE.md",
+        ]
+
     def test_lint_resolves_relative_links_from_current_file(
         self, tmp_path, monkeypatch
     ):
@@ -171,6 +197,28 @@ class TestCmdAdd:
 
         content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
         assert content.count("- `.agents/mcp-github.md`") == 1
+
+    def test_add_mcp_ignores_heading_mentions_inside_fenced_blocks_first(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".agents").mkdir()
+        (tmp_path / "AGENTS.md").write_text(
+            "```md\n## Tools & Integrations\n```\n\n"
+            "Intro\n\n"
+            "## Tools & Integrations\n\n"
+            "Actual content\n",
+            encoding="utf-8",
+        )
+
+        cli.cmd_add(make_add_args(type="mcp", name="github"))
+
+        content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        assert "```md\n## Tools & Integrations\n```" in content
+        assert (
+            "## Tools & Integrations\n\n- `.agents/mcp-github.md`\n\nActual content"
+            in content
+        )
 
     def test_add_skill_rejects_path_traversal_name(self, tmp_path, monkeypatch):
         """Traversal-like skill names must be rejected before touching the project."""

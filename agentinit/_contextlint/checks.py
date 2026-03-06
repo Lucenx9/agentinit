@@ -72,6 +72,13 @@ def _to_int_or_default(value: object, default: int) -> int:
         return default
 
 
+def _string_list(value: object) -> list[str]:
+    """Return only string items from list-like config values."""
+    if not isinstance(value, (list, tuple, set)):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
 def _find_config_path(root: Path, config_path: Path | None) -> Path | None:
     """Return explicit config path or first existing default config path."""
     if config_path is not None:
@@ -116,14 +123,14 @@ def _apply_nested_config(cfg: Config, data: dict[str, object]) -> None:
 
     ig = data.get("ignore", {})
     if isinstance(ig, dict):
-        cfg.ignore_paths = set(ig.get("paths", []))
-        cfg.ignore_refs = set(ig.get("refs", []))
-        for f in ig.get("files", []):  # legacy alias
+        cfg.ignore_paths = set(_string_list(ig.get("paths", [])))
+        cfg.ignore_refs = set(_string_list(ig.get("refs", [])))
+        for f in _string_list(ig.get("files", [])):  # legacy alias
             cfg.ignore_paths.add(f)
 
     disc = data.get("discovery", {})
     if isinstance(disc, dict):
-        cfg.extra_globs = list(disc.get("extra_globs", []))
+        cfg.extra_globs = _string_list(disc.get("extra_globs", []))
         cfg.disable_default_discovery = bool(disc.get("disable_defaults", False))
 
 
@@ -135,8 +142,7 @@ def _apply_legacy_config(cfg: Config, data: dict[str, object]) -> None:
         data.get("router_warn_lines"), ROUTER_WARN_LINES
     )
     legacy_ignore = data.get("ignore", [])
-    if isinstance(legacy_ignore, list):
-        cfg.ignore_paths = set(legacy_ignore)
+    cfg.ignore_paths = set(_string_list(legacy_ignore))
 
 
 @dataclass
@@ -289,6 +295,34 @@ def _discover_context_files(root: Path, config: Config) -> tuple[list[Path], set
     found.sort(key=lambda p: _rel(p, root))
     found, hot_rels = _apply_ignore_filter(root, found, hot_rels, config.ignore_paths)
     return found, hot_rels
+
+
+def _is_hot_rel(rel: str) -> bool:
+    """Return True when *rel* is treated as always-hot context."""
+    rel_posix = rel.replace(os.sep, "/")
+    if rel_posix in ALWAYS_HOT:
+        return True
+    return any(fnmatch.fnmatch(rel_posix, pattern) for pattern in ALWAYS_HOT_GLOBS)
+
+
+def _select_context_files(
+    root: Path, files: list[Path], hot_rels: set[str], selected_paths: set[str]
+) -> tuple[list[Path], set[str]]:
+    """Restrict discovered files to an explicit relative-path allowlist."""
+    selected = {path.replace(os.sep, "/") for path in selected_paths}
+    filtered_files = [
+        fpath for fpath in files if _rel(fpath, root).replace(os.sep, "/") in selected
+    ]
+    seen = {_rel(fpath, root).replace(os.sep, "/") for fpath in filtered_files}
+
+    for rel in sorted(selected):
+        candidate = root / rel
+        if rel not in seen and candidate.is_file():
+            filtered_files.append(candidate)
+
+    filtered_files.sort(key=lambda p: _rel(p, root))
+    filtered_hot = {rel for rel in selected if rel in hot_rels or _is_hot_rel(rel)}
+    return filtered_files, filtered_hot
 
 
 def discover_context_files(root: Path, config: Config | None = None) -> list[Path]:
@@ -603,12 +637,15 @@ def run_checks(
     root: Path,
     config: Config | None = None,
     check_dup: bool = True,
+    selected_paths: set[str] | None = None,
 ) -> LintResult:
     """Run all checks against *root* and return a :class:`LintResult`."""
     root = root.resolve()
     if config is None:
         config = load_config(root)
     files, hot_rels = _discover_context_files(root, config)
+    if selected_paths is not None:
+        files, hot_rels = _select_context_files(root, files, hot_rels, selected_paths)
     result = LintResult()
 
     _check_line_budget(root, files, hot_rels, result, config)

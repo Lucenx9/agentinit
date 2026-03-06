@@ -39,6 +39,16 @@ class TestCmdNew:
         cli.cmd_new(args_force)
         assert (tmp_path / "myproj" / "AGENTS.md").read_text() != "custom"
 
+    def test_rejects_existing_file_even_with_force(self, tmp_path, capsys):
+        target = tmp_path / "myproj"
+        target.write_text("not a directory", encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_new(make_args(name="myproj", dir=str(tmp_path), force=True))
+
+        assert exc.value.code == 1
+        assert "is not a directory" in capsys.readouterr().err
+
     @pytest.mark.parametrize("bad_name", ["..", ".", "../.."])
     def test_rejects_traversal_names(self, tmp_path, bad_name, capsys):
         args = make_args(name=bad_name, dir=str(tmp_path))
