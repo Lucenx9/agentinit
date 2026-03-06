@@ -5,7 +5,7 @@ import re
 import sys
 import unicodedata
 
-_PURPOSE_PLACEHOLDER = "Describe what this project is for and expected outcomes."
+_PURPOSE_PLACEHOLDER = "(describe your project purpose and goals)"
 _PURPOSE_ORIGINAL_MARKER_PREFIX = "<!-- agentinit:purpose-original:"
 _PURPOSE_ORIGINAL_MARKER_RE = re.compile(
     r"^<!--\s*agentinit:purpose-original:\s*(.*?)\s*-->\s*$",

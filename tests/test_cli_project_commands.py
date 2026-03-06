@@ -105,7 +105,7 @@ class TestCmdNew:
         ]
         content = (proj / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         # No purpose provided → template placeholder text stays as-is
-        assert "Describe what this project is for and expected outcomes." in content
+        assert "(describe your project purpose and goals)" in content
         assert "TBD" not in content
 
     def test_minimal_with_purpose(self, tmp_path):
@@ -681,6 +681,26 @@ class TestEdgeCases:
             assert "AGENTS.md" in copied
         finally:
             agents.chmod(0o644)  # restore for cleanup
+
+    def test_force_copy_permission_denied_no_dst(self, tmp_path, monkeypatch, capsys):
+        """force=True should skip gracefully when dst doesn't exist and write fails."""
+        from unittest.mock import patch
+
+        cli.copy_template(str(tmp_path))
+        # Remove AGENTS.md so dst won't exist, then make copy2 always fail
+        (tmp_path / "AGENTS.md").unlink()
+        original_copy2 = __import__("shutil").copy2
+
+        def fail_copy2(src, dst, **kw):
+            if "AGENTS.md" in str(dst):
+                raise PermissionError("simulated write failure")
+            return original_copy2(src, dst, **kw)
+
+        with patch("shutil.copy2", side_effect=fail_copy2):
+            copied, skipped = cli.copy_template(str(tmp_path), force=True)
+        assert "AGENTS.md" in skipped
+        assert "AGENTS.md" not in copied
+        assert "permission denied" in capsys.readouterr().err
 
     def test_remove_readonly_file(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

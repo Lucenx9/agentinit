@@ -167,7 +167,7 @@ class ScaffoldOps:
         try:
             shutil.copy2(src, dst)
         except PermissionError:
-            if not force:
+            if not force or not os.path.exists(dst):
                 print(
                     self._warning_prefix() + f" permission denied, skipping: {rel}",
                     file=sys.stderr,

@@ -52,7 +52,9 @@ def _read_text(path: str, label: str) -> tuple[str | None, str | None]:
 def _write_text(path: str, content: str) -> str | None:
     """Write *content* to *path*; return error message on failure."""
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
     except OSError as exc:

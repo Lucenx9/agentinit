@@ -1,6 +1,6 @@
 # Project Context
 
-**Purpose:** Describe what this project is for and expected outcomes.
+**Purpose:** (describe your project purpose and goals)
 
 ## Stack
 
@@ -24,11 +24,11 @@
 
 - `AGENTS.md`: Primary router.
 - `docs/`: Source-of-truth context and memory files.
-- `src/`: (describe your source layout)
-- `tests/`: (describe your test layout)
+- `src/`: (not configured)
+- `tests/`: (not configured)
 
 ## Constraints
 
-- **Security:** (document security constraints)
-- **Performance:** (document performance constraints)
-- **Deadlines/Limits:** (document deadline constraints)
+- **Security:** (not configured)
+- **Performance:** (not configured)
+- **Deadlines/Limits:** (not configured)
