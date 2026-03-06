@@ -4,6 +4,43 @@ import argparse
 import importlib.metadata
 
 
+def _add_scaffold_args(parser, skeleton_choices):
+    """Add common scaffold arguments shared by new, init, and minimal."""
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip interactive wizard and overwrite existing files (alias for --force).",
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite existing agentinit files."
+    )
+    parser.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
+    parser.add_argument(
+        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
+    )
+    parser.add_argument(
+        "--detect",
+        action="store_true",
+        help="Auto-detect stack and commands from manifest files.",
+    )
+    parser.add_argument(
+        "--translate-purpose",
+        action="store_true",
+        help="Translate non-English Purpose text to English for docs/*.",
+    )
+    parser.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
+    )
+    parser.add_argument(
+        "--skeleton",
+        choices=skeleton_choices,
+        help="Copy starter boilerplate after context files (e.g. fastapi).",
+    )
+
+
 def build_parser(skeleton_choices, add_resource_types):
     parser = argparse.ArgumentParser(
         prog="agentinit",
@@ -23,110 +60,18 @@ def build_parser(skeleton_choices, add_resource_types):
     # agentinit new <name>
     p_new = sub.add_parser("new", help="Create a new project with agent context files.")
     p_new.add_argument("name", help="Project directory name.")
-    p_new.add_argument(
-        "--yes", "-y", action="store_true", help="Skip interactive wizard."
-    )
     p_new.add_argument("--dir", help="Parent directory (default: current directory).")
-    p_new.add_argument(
-        "--force",
-        action="store_true",
-        help="Overwrite agentinit files (including TODO/DECISIONS) if they exist.",
-    )
-    p_new.add_argument(
-        "--minimal",
-        action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
-    )
-    p_new.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_new.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_new.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_new.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_new.add_argument(
-        "--skeleton",
-        choices=skeleton_choices,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
+    _add_scaffold_args(p_new, skeleton_choices)
 
     # agentinit init
     p_init = sub.add_parser(
         "init", help="Add missing agent context files to the current directory."
     )
-    p_init.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip interactive wizard and overwrite existing files (alias for --force).",
-    )
-    p_init.add_argument(
-        "--force",
-        action="store_true",
-        help="Overwrite existing agentinit files (including TODO/DECISIONS).",
-    )
-    p_init.add_argument(
-        "--minimal",
-        action="store_true",
-        help="Create only AGENTS.md, CLAUDE.md, llms.txt, docs/PROJECT.md, and docs/CONVENTIONS.md.",
-    )
-    p_init.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_init.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_init.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_init.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_init.add_argument(
-        "--skeleton",
-        choices=skeleton_choices,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
+    _add_scaffold_args(p_init, skeleton_choices)
 
     # agentinit minimal  (shortcut for init --minimal)
     p_minimal = sub.add_parser("minimal", help="Shortcut for 'init --minimal'.")
-    p_minimal.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip interactive wizard and overwrite existing files (alias for --force).",
-    )
-    p_minimal.add_argument(
-        "--force", action="store_true", help="Overwrite existing agentinit files."
-    )
-    p_minimal.add_argument("--purpose", help="Non-interactive prefill for Purpose.")
-    p_minimal.add_argument(
-        "--prompt", action="store_true", help="Run interactive wizard (default on TTY)."
-    )
-    p_minimal.add_argument(
-        "--detect",
-        action="store_true",
-        help="Auto-detect stack and commands from manifest files.",
-    )
-    p_minimal.add_argument(
-        "--translate-purpose",
-        action="store_true",
-        help="Translate non-English Purpose text to English for docs/*.",
-    )
-    p_minimal.add_argument(
-        "--skeleton",
-        choices=skeleton_choices,
-        help="Copy starter boilerplate after context files (e.g. fastapi).",
-    )
+    _add_scaffold_args(p_minimal, skeleton_choices)
 
     # agentinit remove
     p_remove = sub.add_parser(

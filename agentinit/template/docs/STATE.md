@@ -26,5 +26,5 @@
 
 ## Last Updated
 
-<!-- Agents: Update this using `date +"%Y-%m-%d %H:%M:%S"` -->
-YYYY-MM-DD
+<!-- Agents: replace the line below with `date +"%Y-%m-%d %H:%M:%S"` output -->
+(not yet updated)

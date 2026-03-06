@@ -238,7 +238,7 @@ class TestApplyUpdates:
 
         content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
         assert "- No external API calls" in content
-        assert "(document security constraints)" not in content
+        assert "**Security:** (not configured)" not in content
 
     def test_wizard_safe_defaults_not_duplicated(self, tmp_path, monkeypatch):
         """Running wizard multiple times should inject Safe Defaults only once."""

@@ -177,7 +177,12 @@ def _extract_project_summary(dest, project_path):
         if not match:
             continue
         summary = match.group(1).strip()
-        if summary and "Describe what this project is for" not in summary:
+        if (
+            summary
+            and "Describe what this project" not in summary
+            and "(not configured)" not in summary
+            and "(describe your project" not in summary
+        ):
             return summary
 
     language = _extract_stack_field(content, "Language(s)")

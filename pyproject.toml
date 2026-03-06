@@ -8,6 +8,7 @@ version = "0.3.11"
 description = "Scaffold agent context files into a project."
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 keywords = ["ai", "agents", "llm", "claude", "cursor", "copilot", "cli", "scaffolding"]
 classifiers = [
@@ -40,8 +41,16 @@ agentinit = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "ruff>=0.6.0"]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib"]
+
+[tool.coverage.run]
+source = ["agentinit"]
+omit = ["agentinit/_contextlint/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

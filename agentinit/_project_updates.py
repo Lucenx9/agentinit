@@ -119,9 +119,9 @@ def apply_updates(
                     content = _replace_commands_section(content, cmds_list)
                 if constraints:
                     old_constraints = (
-                        "- **Security:** (document security constraints)\n"
-                        "- **Performance:** (document performance constraints)\n"
-                        "- **Deadlines/Limits:** (document deadline constraints)"
+                        "- **Security:** (not configured)\n"
+                        "- **Performance:** (not configured)\n"
+                        "- **Deadlines/Limits:** (not configured)"
                     )
                     content = content.replace(old_constraints, f"- {constraints}")
 

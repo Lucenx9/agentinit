@@ -8,9 +8,6 @@
 @docs/TODO.md
 @docs/DECISIONS.md
 @docs/STATE.md
-@.claude/rules/coding-style.md
-@.claude/rules/testing.md
-@.claude/rules/repo-map.md
 
 Treat `AGENTS.md` as the single source of truth for mandatory rules and use the imported docs as working memory.
 

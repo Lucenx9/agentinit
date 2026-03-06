@@ -1,18 +1,18 @@
-# TODO Template
+# TODO
 
 ## In Progress
 
-- [ ] (Active task description)
+- [ ] Fill `docs/PROJECT.md` with real stack and command details.
 
 ## Next
 
-- [ ] Fill `docs/PROJECT.md` with real stack and command details.
 - [ ] Fill `docs/CONVENTIONS.md` with concrete team standards.
+- [ ] Review generated agent router files and customize as needed.
 
 ## Blocked
 
-- [ ] (Reason for blockage)
+- (none)
 
 ## Done
 
-- [x] Scaffolded agent router and docs templates.
+- [x] Scaffolded project with agentinit.

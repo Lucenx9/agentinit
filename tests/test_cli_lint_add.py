@@ -133,6 +133,61 @@ class TestCmdLint:
         assert exc.value.code == 0
 
 
+class TestRouterSanityFiltering:
+    def test_router_sanity_respects_selected_paths(self, tmp_path, monkeypatch):
+        """Router sanity should only check files within selected_paths."""
+        from agentinit._contextlint.checks import run_checks
+
+        monkeypatch.chdir(tmp_path)
+        # Create AGENTS.md, CLAUDE.md (valid), and GEMINI.md (invalid — no pointer)
+        (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+        (tmp_path / "CLAUDE.md").write_text(
+            "See AGENTS.md and docs/\n", encoding="utf-8"
+        )
+        (tmp_path / "GEMINI.md").write_text(
+            "This router has no pointer at all.\n", encoding="utf-8"
+        )
+
+        # Without selected_paths: GEMINI.md should be flagged
+        result_all = run_checks(root=tmp_path)
+        gemini_diags = [d for d in result_all.diagnostics if d.path == "GEMINI.md"]
+        assert any("no pointer" in d.message for d in gemini_diags)
+
+        # With selected_paths excluding GEMINI.md: no GEMINI.md diagnostics
+        result_filtered = run_checks(
+            root=tmp_path, selected_paths={"AGENTS.md", "CLAUDE.md"}
+        )
+        gemini_diags_filtered = [
+            d for d in result_filtered.diagnostics if d.path == "GEMINI.md"
+        ]
+        assert gemini_diags_filtered == []
+
+    def test_minimal_status_ignores_gemini_router_warnings(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Minimal status should not show router warnings for GEMINI.md."""
+        monkeypatch.chdir(tmp_path)
+        cli.cmd_init(make_init_args(minimal=True))
+
+        # Create a leftover GEMINI.md with no pointer (would trigger router warning)
+        (tmp_path / "GEMINI.md").write_text(
+            "This file has no pointer to AGENTS.md or docs/.\n", encoding="utf-8"
+        )
+
+        # Fill TBD markers
+        for rel in cli.MINIMAL_MANAGED_FILES:
+            path = tmp_path / rel
+            if path.is_file():
+                content = path.read_text(encoding="utf-8")
+                path.write_text(content.replace("TBD", "done"), encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc:
+            cli.cmd_status(make_status_args(minimal=True, check=True))
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "GEMINI.md" not in out
+
+
 class TestCmdAdd:
     def test_add_skill_fallback_dedup(self, tmp_path, monkeypatch, capsys):
         """add skill fallback/dedup works when a skill exists in .claude/skills/ but .agents/ exists too."""

@@ -511,8 +511,18 @@ def _check_broken_refs(
 _POINTER_RE = re.compile(r"(AGENTS\.md|docs/)", re.IGNORECASE)
 
 
-def _check_router_sanity(root: Path, result: LintResult, config: Config) -> None:
-    for name in sorted(ROUTER_FILES):
+def _check_router_sanity(
+    root: Path,
+    result: LintResult,
+    config: Config,
+    *,
+    selected_paths: set[str] | None = None,
+) -> None:
+    check_names = sorted(ROUTER_FILES)
+    if selected_paths is not None:
+        selected = {p.replace(os.sep, "/") for p in selected_paths}
+        check_names = [n for n in check_names if n in selected]
+    for name in check_names:
         fpath = root / name
         if not fpath.is_file():
             continue
@@ -650,7 +660,7 @@ def run_checks(
 
     _check_line_budget(root, files, hot_rels, result, config)
     _check_broken_refs(root, files, result, config)
-    _check_router_sanity(root, result, config)
+    _check_router_sanity(root, result, config, selected_paths=selected_paths)
     if check_dup:
         _check_duplicates(root, files, result)
 

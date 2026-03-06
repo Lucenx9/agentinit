@@ -1,33 +1,29 @@
-# Agent Instructions (AGENTS.md)
+# Agent Instructions
 
-**Purpose:** Primary entry point for coding agents to understand the project structure and rules.
+**Purpose:** (not configured)
 
 > **🚨 CORE MANDATES:**
 >
-> - **YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the exact start of every session. Do not ask for permission.
-> - **YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` autonomously before ending a task or session.
+> - **YOU MUST ALWAYS** read `docs/STATE.md`, `docs/TODO.md`, and `docs/DECISIONS.md` autonomously at the start of every session.
+> - **YOU MUST ALWAYS** update `docs/STATE.md` and `docs/TODO.md` before ending a task or session.
 > - **YOU MUST ALWAYS** log new tools, dependencies, or conventions in `docs/DECISIONS.md`.
-
-**Non-obvious conventions / landmines:**
-
-- (Add project-specific warnings, anti-patterns, or strict rules here)
-- ...
 
 **Commands:**
 
 - Canonical runnable commands live in `docs/PROJECT.md`.
 - Keep Setup / Build / Test / Lint/Format / Run current there.
 
-> If you introduce a tool or dependency (pytest, ruff, etc.), record it in `docs/DECISIONS.md` and update `docs/PROJECT.md` commands in the same PR.
+> If you introduce a tool or dependency, record it in `docs/DECISIONS.md` and update `docs/PROJECT.md` commands in the same PR.
+
+**Non-obvious conventions / gotchas:**
+
+- (not configured)
 
 **When unsure:**
 
-- Ask for clarification / confirm assumptions before risky changes.
+- Ask for clarification before risky or destructive changes.
+- Prefer small, reversible edits.
 - Read the linked files in `docs/` for deeper context.
-
-**Language:** You may chat in any language, but keep `docs/*` in English.
-
-**Fallback:** If you're unsure what to do next, open `docs/STATE.md` first.
 
 **Context files (load when relevant):**
 
@@ -36,11 +32,8 @@
 - `docs/TODO.md` — Active work, plans, assumptions.
 - `docs/DECISIONS.md` — Past architectural choices and rationale.
 - `docs/STATE.md` — Current focus, next steps, blockers (session handoff).
-- `.claude/rules/` — Modular coding rules (style, testing, repo layout).
 
 **Token discipline:**
 
-- Keep this `AGENTS.md` file short (~60–120 lines).
 - Move long explanations, architecture notes, and deep dives to `docs/`.
 - Prefer linking to other files over inline dumps.
-- Don't repeatedly re-read these files unless they changed.
