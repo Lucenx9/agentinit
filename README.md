@@ -121,11 +121,16 @@ Wiki (full usage and examples):
 ## Development 🧪
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -e . --group dev
 python3 -m ruff check agentinit tests cli
 python3 -m ruff format --check agentinit tests cli
 python3 -m pytest tests/ -v
 ```
+
+On distro-managed Python installs that enforce PEP 668, run the development
+commands inside a virtual environment instead of the system interpreter.
 
 ## License
 
