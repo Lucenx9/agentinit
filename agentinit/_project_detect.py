@@ -361,7 +361,9 @@ def _run_detect(dest, project_path, content):
                 for line in f:
                     line = line.strip()
                     if line.startswith("go "):
-                        go_version = line.split(" ")[1]
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            go_version = parts[1]
                         break
 
             stack_updates["- **Language(s):** (not configured)"] = (
