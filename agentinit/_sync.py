@@ -142,7 +142,8 @@ def _sync_single_router(
     expected, read_error = _read_text(template_path, "template")
     if read_error:
         return "error", read_error
-    assert expected is not None
+    if expected is None:
+        return "error", "template read failed"
 
     current = None
     if os.path.isfile(dst):
