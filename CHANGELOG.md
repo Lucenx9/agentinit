@@ -9,7 +9,6 @@
 - Make `docs/PROJECT.md` environment updates idempotent when rerunning the interactive wizard.
 - Refresh generated `llms.txt` during `agentinit init` even when the file already exists, while leaving custom `llms.txt` files untouched.
 
-
 ## [0.3.13] - 2026-03-06
 
 ### Added
