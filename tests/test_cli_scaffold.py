@@ -211,6 +211,27 @@ class TestApplyUpdates:
             f"Conventions={conventions_idx}, SafeDefaults={safe_defaults_idx}, Style={style_idx}"
         )
 
+    def test_wizard_env_replaces_existing_section_without_duplication(
+        self, tmp_path, monkeypatch
+    ):
+        cli.copy_template(str(tmp_path))
+        args = make_args(prompt=True, purpose="Test project")
+
+        inputs = iter(["Linux x86_64", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        cli.apply_updates(str(tmp_path), args)
+
+        inputs = iter(["Linux ARM64", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+        cli.apply_updates(str(tmp_path), args)
+
+        content = (tmp_path / "docs" / "PROJECT.md").read_text(encoding="utf-8")
+
+        assert content.count("## Environment") == 1
+        assert "- OS/device: Linux ARM64" in content
+        assert "- OS/device: Linux x86_64" not in content
+
     def test_wizard_env_inserts_before_stack(self, tmp_path, monkeypatch):
         """Wizard environment should be inserted before ## Stack."""
         cli.copy_template(str(tmp_path))
