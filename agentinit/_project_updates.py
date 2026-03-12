@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from argparse import Namespace
 from collections.abc import Callable
 
+from agentinit._llms import _looks_generated_llms
 from agentinit._project_detect import (
     _PURPOSE_PLACEHOLDER,
     _clear_purpose_original_marker,
@@ -24,6 +26,36 @@ from agentinit._project_detect import (
 ValidateManagedPath = Callable[[str, str], bool]
 RefreshLlms = Callable[[str], float | None]
 PrefixFactory = Callable[[], str]
+
+
+_ENVIRONMENT_SECTION_RE = re.compile(
+    r"^## Environment\s*\n.*?(?=^## [^\n]+|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _upsert_environment_section(content: str, env: str) -> str:
+    """Insert or replace the Environment section in PROJECT.md content."""
+    if not env:
+        return content
+
+    section = f"## Environment\n\n- OS/device: {env}\n\n"
+    updated, count = _ENVIRONMENT_SECTION_RE.subn(section, content, count=1)
+    if count:
+        return updated
+    return content.replace("## Stack", section + "## Stack", 1)
+
+
+def _refresh_llms_if_generated(dest: str, refresh_llms_txt: RefreshLlms) -> bool:
+    """Refresh llms.txt only when the current file still looks generated."""
+    llms_path = os.path.join(dest, "llms.txt")
+    if not os.path.isfile(llms_path):
+        return False
+    with open(llms_path, "r", encoding="utf-8") as f:
+        current = f.read()
+    if not _looks_generated_llms(current):
+        return False
+    return refresh_llms_txt(dest) is not None
 
 
 def apply_updates(
@@ -82,6 +114,7 @@ def apply_updates(
     translate_requested = bool(getattr(args, "translate_purpose", False))
     translated_for_docs = False
 
+    project_changed = False
     project_content = ""
     project_path = os.path.join(dest, "docs", "PROJECT.md")
     project_rel = os.path.join("docs", "PROJECT.md")
@@ -94,7 +127,7 @@ def apply_updates(
         )
     elif project_safe:
         with open(project_path, "r", encoding="utf-8") as f:
-            content = f.read()
+            content = original_content = f.read()
 
         if can_write(project_rel):
             if purpose:
@@ -104,12 +137,7 @@ def apply_updates(
                     content = _clear_purpose_original_marker(content)
 
             if wizard_run:
-                if env:
-                    content = content.replace(
-                        "## Stack",
-                        f"## Environment\n\n- OS/device: {env}\n\n## Stack",
-                        1,
-                    )
+                content = _upsert_environment_section(content, env)
                 if commands:
                     cmds_list = "\n".join(
                         f"- {command.strip()}"
@@ -150,6 +178,7 @@ def apply_updates(
             if getattr(args, "detect", False):
                 content = _run_detect(dest, project_path, content)
 
+            project_changed = content != original_content
             with open(project_path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(content)
         project_content = content
@@ -220,3 +249,12 @@ def apply_updates(
 
     if can_write("llms.txt"):
         refresh_llms_txt(dest)
+    elif validate_managed_path(dest, os.path.join(dest, "llms.txt")):
+        if _refresh_llms_if_generated(dest, refresh_llms_txt):
+            return
+        if project_changed:
+            print(
+                warning_prefix()
+                + " llms.txt already exists and was left untouched. Run 'agentinit refresh-llms' if you want to resync it.",
+                file=sys.stderr,
+            )

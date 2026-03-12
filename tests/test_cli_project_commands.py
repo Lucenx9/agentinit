@@ -275,6 +275,26 @@ class TestCmdInit:
         )
         assert llms.read_text(encoding="utf-8") == "custom llms\n"
 
+    def test_refreshes_generated_llms_without_force(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        stale_llms = (
+            "# Old project\n"
+            "> Old summary\n\n"
+            "## Key Files\n"
+            "- [AGENTS.md](AGENTS.md): Instructions and Rules\n\n"
+            "## Hardened Mandates\n"
+            "- [No explicit MUST ALWAYS/MUST NEVER mandates found](AGENTS.md)\n\n"
+            "## Skills & Routers\n"
+            "- [No additional skills or routers configured](AGENTS.md)\n"
+        )
+        (tmp_path / "llms.txt").write_text(stale_llms, encoding="utf-8")
+
+        cli.cmd_init(make_init_args(minimal=True, purpose="Fresh purpose"))
+
+        llms = (tmp_path / "llms.txt").read_text(encoding="utf-8")
+        assert llms != stale_llms
+        assert "> Fresh purpose" in llms
+
     def test_missing_template_dir_prints_to_stderr(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(cli, "TEMPLATE_DIR", str(tmp_path / "nonexistent"))

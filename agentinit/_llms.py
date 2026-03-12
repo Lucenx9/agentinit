@@ -20,6 +20,11 @@ _LLMS_KEY_FILES = [
     ("docs/DECISIONS.md", "Architectural Log"),
 ]
 _LLMS_MAX_MANDATES = 8
+_GENERATED_LLMS_HEADINGS = (
+    "## Key Files",
+    "## Hardened Mandates",
+    "## Skills & Routers",
+)
 
 
 def _resolve_project_context_path(dest):
@@ -289,6 +294,17 @@ def _list_agents_entries(dest):
     if not entries:
         entries.append("- [No additional skills or routers configured](AGENTS.md)")
     return entries
+
+
+def _looks_generated_llms(content):
+    """Return True when llms.txt still matches agentinit's generated shape."""
+    lines = content.splitlines()
+    return bool(
+        len(lines) >= 2
+        and lines[0].startswith("# ")
+        and lines[1].startswith("> ")
+        and all(heading in content for heading in _GENERATED_LLMS_HEADINGS)
+    )
 
 
 def _render_llms_content(dest, template_dir):
