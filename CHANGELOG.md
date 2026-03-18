@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.3.15] - 2026-03-18
+
+### Fixed
+
+- Fix `_translate_text_to_english` destroying multi-line CONVENTIONS.md content by collapsing all whitespace into a single line.
+- Fix `agentinit new --yes` not implying `--force`, causing unexpected errors when the target directory already exists.
+- Add missing error handling for unreadable files in llms.txt rendering to prevent unhandled crashes.
+- Remove leftover `.ruff_cache` artifact from fastapi skeleton template.
+
 ## [0.3.14] - 2026-03-12
 
 ### Fixed

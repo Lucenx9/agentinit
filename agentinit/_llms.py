@@ -74,8 +74,11 @@ def _project_name_from_project_doc(project_path):
     """Extract first markdown title from PROJECT.md-style files."""
     if not os.path.isfile(project_path):
         return ""
-    with open(project_path, "r", encoding="utf-8") as f:
-        content = f.read()
+    try:
+        with open(project_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except (OSError, UnicodeDecodeError):
+        return ""
     match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
     if not match:
         return ""
@@ -174,8 +177,12 @@ def _extract_project_summary(dest, project_path):
         detected = _detect_project_summary(dest)
         return detected or _LLMS_DEFAULT_SUMMARY
 
-    with open(project_path, "r", encoding="utf-8") as f:
-        content = f.read()
+    try:
+        with open(project_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except (OSError, UnicodeDecodeError):
+        detected = _detect_project_summary(dest)
+        return detected or _LLMS_DEFAULT_SUMMARY
 
     for pattern in (r"^\*\*Purpose:\*\*\s*(.+)$", r"^Purpose:\s*(.+)$"):
         match = re.search(pattern, content, re.MULTILINE)
@@ -233,21 +240,24 @@ def _extract_hardened_mandates(agents_path):
     seen = set()
     mandates_url = "AGENTS.md"
     if os.path.isfile(agents_path):
-        with open(agents_path, "r", encoding="utf-8") as f:
-            index = 0
-            for raw_line in f:
-                clean = raw_line.strip()
-                clean = re.sub(r"^>\s*", "", clean)
-                clean = re.sub(r"^[-*]\s*", "", clean)
-                if not clean:
-                    continue
-                if "MUST ALWAYS" not in clean and "MUST NEVER" not in clean:
-                    continue
-                bullet = f"- [{clean}]({mandates_url})"
-                if bullet not in seen:
-                    seen.add(bullet)
-                    scored.append((index, _mandate_priority(clean), bullet))
-                index += 1
+        try:
+            with open(agents_path, "r", encoding="utf-8") as f:
+                index = 0
+                for raw_line in f:
+                    clean = raw_line.strip()
+                    clean = re.sub(r"^>\s*", "", clean)
+                    clean = re.sub(r"^[-*]\s*", "", clean)
+                    if not clean:
+                        continue
+                    if "MUST ALWAYS" not in clean and "MUST NEVER" not in clean:
+                        continue
+                    bullet = f"- [{clean}]({mandates_url})"
+                    if bullet not in seen:
+                        seen.add(bullet)
+                        scored.append((index, _mandate_priority(clean), bullet))
+                    index += 1
+        except (OSError, UnicodeDecodeError):
+            pass
 
     mandates = []
     if scored:
@@ -313,8 +323,11 @@ def _render_llms_content(dest, template_dir):
     project_name = _extract_project_name(dest, project_path)
     summary = _extract_project_summary(dest, project_path)
     if os.path.isfile(project_path):
-        with open(project_path, "r", encoding="utf-8") as f:
-            project_content = f.read()
+        try:
+            with open(project_path, "r", encoding="utf-8") as f:
+                project_content = f.read()
+        except (OSError, UnicodeDecodeError):
+            project_content = ""
         original_purpose = _extract_purpose_original_marker(project_content)
         translated_purpose = _extract_purpose_text(project_content)
         if (

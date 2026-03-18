@@ -112,7 +112,6 @@ def apply_updates(
         commands = ""
 
     translate_requested = bool(getattr(args, "translate_purpose", False))
-    translated_for_docs = False
 
     project_changed = False
     project_content = ""
@@ -166,7 +165,6 @@ def apply_updates(
                 if translated and translated != current_purpose:
                     content = _replace_purpose_text(content, translated)
                     content = _set_purpose_original_marker(content, current_purpose)
-                    translated_for_docs = True
                     print("Purpose translated to English for docs/*")
             elif purpose and _purpose_seems_non_english(purpose):
                 print(
@@ -227,26 +225,9 @@ def apply_updates(
             with open(conv_path, "r", encoding="utf-8") as f:
                 conv_content = f.read()
             conv_updated = _run_detect_conventions(project_content, conv_content)
-            if translated_for_docs:
-                conv_updated = _translate_text_to_english(conv_updated)
             if conv_updated != conv_content:
                 with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(conv_updated)
-    elif translated_for_docs:
-        conv_path = os.path.join(dest, "docs", "CONVENTIONS.md")
-        conv_rel = os.path.join("docs", "CONVENTIONS.md")
-        if (
-            can_write(conv_rel)
-            and validate_managed_path(dest, conv_path)
-            and os.path.isfile(conv_path)
-        ):
-            with open(conv_path, "r", encoding="utf-8") as f:
-                conv_content = f.read()
-            conv_updated = _translate_text_to_english(conv_content)
-            if conv_updated != conv_content:
-                with open(conv_path, "w", encoding="utf-8", newline="\n") as f:
-                    f.write(conv_updated)
-
     if can_write("llms.txt"):
         refresh_llms_txt(dest)
     elif validate_managed_path(dest, os.path.join(dest, "llms.txt")):

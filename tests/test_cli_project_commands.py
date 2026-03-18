@@ -27,7 +27,7 @@ class TestCmdNew:
 
     def test_fails_if_exists_no_force(self, tmp_path):
         (tmp_path / "myproj").mkdir()
-        args = make_args(name="myproj", dir=str(tmp_path))
+        args = make_args(name="myproj", dir=str(tmp_path), yes=False)
         with pytest.raises(SystemExit) as exc:
             cli.cmd_new(args)
         assert exc.value.code == 1
