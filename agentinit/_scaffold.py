@@ -368,6 +368,7 @@ Use one ADR-lite entry per durable decision.
     def cmd_new(self, args: Namespace) -> None:
         if getattr(args, "yes", False):
             args.prompt = False
+            args.force = True
 
         basename = os.path.basename(os.path.normpath(args.name))
         if not basename or basename in (".", ".."):
